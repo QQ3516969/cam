@@ -1,0 +1,149 @@
+import os
+import hmac
+import json
+import time
+import hashlib
+from urllib.parse import urlencode
+
+import requests
+from flask import Flask, jsonify, request
+from dotenv import load_dotenv
+
+load_dotenv()
+app = Flask(__name__)
+
+TUYA_BASE = os.getenv("TUYA_BASE_URL", "https://openapi.tuyacn.com")
+TUYA_CLIENT_ID = os.getenv("TUYA_CLIENT_ID", "")
+TUYA_CLIENT_SECRET = os.getenv("TUYA_CLIENT_SECRET", "")
+TUYA_DEVICE_ID = os.getenv("TUYA_DEVICE_ID", "")
+TUYA_REMOTE_ID = os.getenv("TUYA_REMOTE_ID", "")
+API_BEARER = os.getenv("API_BEARER", "")
+COMMAND_MAP_JSON = os.getenv("COMMAND_MAP_JSON", "{}")
+
+try:
+    COMMAND_MAP = json.loads(COMMAND_MAP_JSON)
+except Exception:
+    COMMAND_MAP = {}
+
+_token_cache = {"token": "", "exp": 0}
+
+
+def _sha256_hex(data: str) -> str:
+    return hashlib.sha256(data.encode("utf-8")).hexdigest()
+
+
+def _string_to_sign(method: str, path: str, query: dict | None, body_obj: dict | None) -> str:
+    query = query or {}
+    body_obj = body_obj or {}
+    body = json.dumps(body_obj, separators=(",", ":"), ensure_ascii=False) if body_obj else ""
+    content_hash = _sha256_hex(body)
+    url = path
+    if query:
+        url = f"{path}?{urlencode(query)}"
+    return "\n".join([method.upper(), content_hash, "", url])
+
+
+def _sign(message: str) -> str:
+    return hmac.new(TUYA_CLIENT_SECRET.encode("utf-8"), message.encode("utf-8"), hashlib.sha256).hexdigest().upper()
+
+
+def _tuya_request(method: str, path: str, *, query: dict | None = None, body: dict | None = None, access_token: str = ""):
+    t = str(int(time.time() * 1000))
+    string_to_sign = _string_to_sign(method, path, query, body)
+
+    if access_token:
+        sign_payload = f"{TUYA_CLIENT_ID}{access_token}{t}{string_to_sign}"
+    else:
+        sign_payload = f"{TUYA_CLIENT_ID}{t}{string_to_sign}"
+
+    headers = {
+        "client_id": TUYA_CLIENT_ID,
+        "t": t,
+        "sign_method": "HMAC-SHA256",
+        "sign": _sign(sign_payload),
+        "Content-Type": "application/json",
+    }
+    if access_token:
+        headers["access_token"] = access_token
+
+    url = f"{TUYA_BASE}{path}"
+    resp = requests.request(method=method.upper(), url=url, params=query, json=body, headers=headers, timeout=20)
+    return resp.status_code, resp.text
+
+
+def _get_token() -> str:
+    now = int(time.time())
+    if _token_cache["token"] and _token_cache["exp"] > now + 30:
+        return _token_cache["token"]
+
+    code, text = _tuya_request("GET", "/v1.0/token", query={"grant_type": 1})
+    if code // 100 != 2:
+        raise RuntimeError(f"token http {code}: {text[:300]}")
+    data = json.loads(text)
+    if not data.get("success"):
+        raise RuntimeError(f"token failed: {data}")
+
+    token = data["result"]["access_token"]
+    expire_time = int(data["result"].get("expire_time", 7200))
+    _token_cache["token"] = token
+    _token_cache["exp"] = int(time.time()) + expire_time
+    return token
+
+
+def _check_config():
+    miss = []
+    for k, v in {
+        "TUYA_CLIENT_ID": TUYA_CLIENT_ID,
+        "TUYA_CLIENT_SECRET": TUYA_CLIENT_SECRET,
+        "TUYA_DEVICE_ID": TUYA_DEVICE_ID,
+        "TUYA_REMOTE_ID": TUYA_REMOTE_ID,
+    }.items():
+        if not v:
+            miss.append(k)
+    return miss
+
+
+@app.get("/health")
+def health():
+    miss = _check_config()
+    return jsonify({
+        "ok": len(miss) == 0,
+        "missing": miss,
+        "tuya_base": TUYA_BASE,
+        "mapped_keys": sorted(COMMAND_MAP.keys()),
+    })
+
+
+@app.post("/api/control")
+def control():
+    if API_BEARER:
+        auth = request.headers.get("Authorization", "")
+        if auth != f"Bearer {API_BEARER}":
+            return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    miss = _check_config()
+    if miss:
+        return jsonify({"ok": False, "error": "missing config", "missing": miss}), 400
+
+    payload = request.get_json(silent=True) or {}
+    key = str(payload.get("key", "")).strip()
+    if not key:
+        return jsonify({"ok": False, "error": "missing key"}), 400
+
+    raw_key = COMMAND_MAP.get(key, key)
+
+    try:
+        token = _get_token()
+        path = f"/v2.0/infrareds/{TUYA_DEVICE_ID}/remotes/{TUYA_REMOTE_ID}/raw/command"
+        body = {"raw_key": raw_key}
+        code, text = _tuya_request("POST", path, body=body, access_token=token)
+        data = json.loads(text) if text else {}
+        if code // 100 == 2 and data.get("success"):
+            return jsonify({"ok": True, "key": key})
+        return jsonify({"ok": False, "key": key, "status": code, "resp": data}), 502
+    except Exception as e:
+        return jsonify({"ok": False, "key": key, "error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)

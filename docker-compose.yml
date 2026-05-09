@@ -1,0 +1,21 @@
+services:
+  cam-api:
+    build: ./backend
+    container_name: cam-api
+    restart: unless-stopped
+    env_file:
+      - ./.env
+
+  cam-web:
+    image: nginx:alpine
+    container_name: cam-web
+    restart: unless-stopped
+    depends_on:
+      - cam-api
+    ports:
+      - "80:80"
+      - "280:80"
+    volumes:
+      - ./web/index.html:/usr/share/nginx/html/index.html:ro
+      - ./web/reader.js:/usr/share/nginx/html/reader.js:ro
+      - ./web/default.conf:/etc/nginx/conf.d/default.conf:ro

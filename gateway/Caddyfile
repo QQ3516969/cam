@@ -1,0 +1,12 @@
+c6666.com {
+  encode gzip
+
+  @cam path /cam /cam/*
+  handle @cam {
+    reverse_proxy cam-web:80
+  }
+
+  handle {
+    respond "Not Found" 404
+  }
+}

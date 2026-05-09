@@ -1,0 +1,817 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>&#x6444;&#x50CF;&#x5934;&#x63A7;&#x5236;&#x9762;&#x677F;</title>
+  <script>
+  </script>
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --panel: #151922;
+      --panel-border: #2b3342;
+      --btn: #2a3140;
+      --btn-border: #3b4558;
+      --btn-text: #eef2ff;
+      --ok: #2ea55f;
+      --ok-border: #46bf79;
+      --shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background: #0f131a; color:#f2f5ff; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif; }
+    .wrap { max-width:980px; margin:0 auto; padding:10px; padding-bottom:64px; }
+    .card { background:var(--panel); border:1px solid var(--panel-border); border-radius:14px; padding:8px; margin-bottom:8px; }
+    .video-card { overflow:hidden; }
+    .video-shell { position:relative; width:100%; max-width:100%; box-sizing:border-box; border-radius:14px; overflow:hidden; background:#000; border:1px solid #2b3342; aspect-ratio:16/9; min-height:220px; isolation:isolate; -webkit-transform:translateZ(0); transform:translateZ(0); }
+    video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; background:#000; -webkit-user-select:none; user-select:none; touch-action:manipulation; border-radius:inherit; clip-path:inset(0 round 14px); }
+    .webrtc-frame { position:absolute; inset:0; width:100%; height:100%; border:0; background:#000; display:none; z-index:25; pointer-events:none; border-radius:inherit; clip-path:inset(0 round 14px); }
+    video::-webkit-media-controls { display:none !important; }
+    video::-webkit-media-controls-enclosure { display:none !important; }
+    .live-badge { position:absolute; right:8px; bottom:8px; height:20px; line-height:20px; padding:0 7px; border-radius:999px; font-size:10px; color:#fff; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.20); letter-spacing:0.2px; z-index:30; display:flex; align-items:center; gap:5px; }
+    #liveText { display:none; }
+    .live-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+    .live-ok { background:#2ecc71; box-shadow:0 0 0 2px rgba(46,204,113,0.2); }
+    .live-warn { background:#f1c40f; box-shadow:0 0 0 2px rgba(241,196,15,0.2); }
+    .live-bad { background:#ff4d4f; box-shadow:0 0 0 2px rgba(255,77,79,0.2); }
+    .video-toolbar { position:absolute; top:8px; right:8px; z-index:31; display:none; gap:6px; }
+    .apple-btn { border:1px solid var(--btn-border); background:var(--btn); color:var(--btn-text); border-radius:10px; transition: background-color .08s ease, border-color .08s ease; font-weight:600; }
+    .apple-btn:active { transform:none; background: #3a475e; border-color:#567099; }
+    .tiny { height:28px; padding:0 8px; font-size:11px; border-radius:9px; }
+    .status { min-height:18px; margin-top:8px; font-size:12px; color:#a7c5ff; letter-spacing:.1px; }
+    .video-status { min-height:0; margin-top:0; }
+    .controls-layout { display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start; }
+    .left-stack { display:flex; flex-direction:column; gap:10px; }
+    .panel-box { border:1px solid rgba(202,220,255,0.34); border-radius:16px; padding:10px; background: radial-gradient(circle at 20% 20%, rgba(72,118,179,0.20), rgba(17,24,36,0.88) 55%), linear-gradient(160deg, rgba(39,48,66,0.88), rgba(14,20,30,0.94)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 22px rgba(0,0,0,0.32); }
+    .panel-title { text-align:center; font-size:17px; font-weight:700; margin-bottom:10px; color:#edf3ff; letter-spacing:1px; text-shadow:0 1px 2px rgba(0,0,0,0.45); }
+    .panel-subtitle { font-size:12px; color:#a9bcdb; margin:0 0 8px; text-align:center; }
+    .ctl-btn { height:40px; font-size:14px; border-radius:12px; }
+    .preset-btn { opacity:.68; background:#242c3a; border-color:#35425a; color:#c7d3ea; font-weight:500; }
+    .preset-btn:active { opacity:.92; }
+    .ok-btn { background:var(--ok); border-color:var(--ok-border); color:#f8fffb; font-weight:700; }
+    .dir-btn { background:#2b5fd9; border-color:#4b7df2; color:#eef4ff; }
+    .dir-btn:active { background:#4a79ea; border-color:#7aa0ff; color:#ffffff; }
+    .joy-up, .joy-down, .joy-left, .joy-right { background:#2b5fd9; border-color:#4b7df2; }
+    .joy-up:active, .joy-down:active, .joy-left:active, .joy-right:active { background:#4a79ea; border-color:#7aa0ff; }
+    .ctl-btn:active { transform:none; background: linear-gradient(180deg, rgba(96,132,190,0.95), rgba(74,106,165,0.95)); border-color: rgba(194,222,255,0.58); color:#ffffff; }
+    .ctl-btn.dir-btn:active { background:#4a79ea; border-color:#7aa0ff; color:#ffffff; }
+    .ok-btn:active { transform:none; background: linear-gradient(180deg, #2fbe66, #269d55); border-color: rgba(132,255,178,0.68); color:#ffffff; }
+    .joy-center:active { transform: translate(-50%,-50%) !important; background:#259653; border-color:#46bf79; }
+    .preset-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+    .extra-grid { margin-top:10px; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:7px; }
+    .extra-btn { height:34px; font-size:13px; border-radius:10px; background:#202735; border-color:#38465e; color:#d7e4ff; }
+    .extra-btn:active { background:#2e3a4f; border-color:#567099; }
+    .home-btn { grid-column:1 / -1; height:36px; font-weight:700; }
+    .func-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+    .center-core { border-radius:32px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    .core-rim { width:226px; height:226px; border-radius:50%; position:relative; background: radial-gradient(circle at 32% 24%, rgba(98,114,140,0.64), rgba(27,34,48,0.96) 60%, rgba(11,15,22,0.98) 100%); border:1px solid rgba(198,216,250,0.30); box-shadow: inset 0 6px 18px rgba(255,255,255,0.12), inset 0 -10px 18px rgba(0,0,0,0.5), 0 12px 22px rgba(0,0,0,0.42); }
+    .core-rim::before { content:""; position:absolute; inset:13px; border-radius:50%; border:1px solid rgba(200,216,243,0.16); }
+    .core-btn { position:absolute; min-width:72px; height:42px; padding:0 12px; }
+    .dir-up { left:50%; top:12px; transform:translateX(-50%); }
+    .dir-down { left:50%; bottom:12px; transform:translateX(-50%); }
+    .dir-left { left:10px; top:50%; transform:translateY(-50%); }
+    .dir-right { right:10px; top:50%; transform:translateY(-50%); }
+    .core-ok { left:50%; top:50%; transform:translate(-50%, -50%); width:84px; height:84px; border-radius:50%; font-size:24px; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.14), 0 8px 16px rgba(0,0,0,0.4); }
+    .fs-overlay { position:absolute; left:0; right:0; bottom:max(8px, env(safe-area-inset-bottom)); display:none; z-index:40; padding:0 8px; pointer-events:none; }
+    .fs-overlay.show { display:block; }
+    .joy-wrap { width:min(420px, 90vw); margin: 8px auto 0; pointer-events:auto; }
+    .joy-stack { display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .joystick { position:relative; width:min(190px, 46vw); height:min(190px, 46vw); margin:0 auto; border-radius:50%; background:#1a202b; border:1px solid #3a4558; }
+    .joy-btn { position:absolute; width:46px; height:46px; border-radius:50%; font-size:12px; border:1px solid #4a556b; background:#232b39; color:#fff; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+    .joy-btn:active { background:#415273; border-color:#6f87b8; }
+    .joy-up { left:50%; top:10px; transform:translateX(-50%); }
+    .joy-down { left:50%; bottom:10px; transform:translateX(-50%); }
+    .joy-left { left:10px; top:50%; transform:translateY(-50%); }
+    .joy-right { right:10px; top:50%; transform:translateY(-50%); }
+    .joy-center { left:50%; top:50%; transform:translate(-50%,-50%); width:56px; height:56px; background:var(--ok); border-color:var(--ok-border); font-weight:700; margin:0; }
+    .joy-zoom-plus { left:40px; bottom:22px; transform:none; width:30px; height:20px; border-radius:10px; font-size:10px; }
+    .joy-zoom-minus { right:40px; bottom:22px; transform:none; width:30px; height:20px; border-radius:10px; font-size:10px; }
+            .stream-bar { display:none !important; }
+    .stream-bar select { height:30px; border-radius:8px; border:1px solid #3b4558; background:#111722; color:#dde7ff; padding:0 7px; font-size:10px; }
+    .stream-bar button { height:30px; font-size:10px; padding:0 8px; border-radius:8px; }
+    .debug-row { display:flex; gap:6px; margin-top:8px; }
+    .debug-toggle { height:28px; padding:0 10px; font-size:11px; border-radius:8px; }
+    .debug-panel { margin-top:8px; border:1px solid #2f394b; border-radius:10px; background:#0f1420; padding:6px; max-height:180px; overflow:auto; }
+    .debug-panel.hide { display:none; }
+    .debug-log { margin:0; white-space:pre-wrap; word-break:break-word; font-size:11px; line-height:1.35; color:#cfe2ff; }
+    .start-btn { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:35; min-width:140px; height:36px; padding:0 14px; display:none; }
+    .video-shell:fullscreen .fs-overlay.show, .video-shell:-webkit-full-screen .fs-overlay.show { display:block; }
+    .video-shell:fullscreen, .video-shell:-webkit-full-screen { width:100vw; height:100vh; border-radius:0; border:none; }
+    .video-shell:fullscreen video, .video-shell:-webkit-full-screen video { width:100%; height:100%; object-fit:cover; }
+    .video-shell:fullscreen .video-toolbar, .video-shell:-webkit-full-screen .video-toolbar { display:flex; }
+    @media (max-width:760px) {
+      .controls-layout { grid-template-columns:1fr; gap:8px; }
+      .ctl-btn { height:36px; font-size:13px; }
+      .panel-title { margin-bottom:8px; font-size:16px; }
+      .preset-grid, .func-grid { gap:6px; }
+      .center-core { order:0; border-radius:18px; padding:10px; }
+      .core-rim { width:200px; height:200px; }
+      .core-btn { min-width:64px; height:38px; }
+      .core-ok { width:74px; height:74px; font-size:22px; }
+      .joy-wrap { width:min(340px, 92vw); margin-top: 10px; }
+      .joystick { width:min(164px, 44vw); height:min(164px, 44vw); }
+      .joy-btn { width:40px; height:40px; font-size:11px; }
+      .joy-center { width:50px; height:50px; font-size:11px; }
+      .joy-zoom-plus, .joy-zoom-minus { width:28px; height:18px; font-size:9px; bottom:20px; }
+      .video-shell { aspect-ratio:16/9; min-height:220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card video-card">
+      <div id="videoShell" class="video-shell">
+        <div id="liveBadge" class="live-badge"><span id="liveDot" class="live-dot live-bad"></span><span id="liveText">检测中</span><span id="latencyText">--ms</span></div>
+        <div class="video-toolbar">
+          <button class="apple-btn tiny" onclick="togglePad()" id="padBtn">&#x25CE;</button>
+        </div>
+
+        <video id="v" autoplay muted playsinline webkit-playsinline></video>
+        <iframe id="webrtcFrame" class="webrtc-frame" allow="autoplay; fullscreen"></iframe>
+        
+        <div class="fs-overlay" id="padOverlay">
+          <div class="joy-wrap">
+            <div class="joy-stack">
+              <div class="joystick">
+                <button class="joy-btn joy-up" onclick="send('up')">&#x4E0A;</button>
+                <button class="joy-btn joy-down" onclick="send('down')">&#x4E0B;</button>
+                <button class="joy-btn joy-left" onclick="send('left')">&#x5DE6;</button>
+                <button class="joy-btn joy-right" onclick="send('right')">&#x53F3;</button>
+                <button class="joy-btn joy-zoom-plus" onclick="send('zoom+')">+</button>
+                <button class="joy-btn joy-zoom-minus" onclick="send('zoom-')">-</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="status video-status" id="videoStatus"></div>
+    </div>
+
+    <div class="card">
+      <div class="controls-layout">
+        <div class="left-stack">
+          <div class="panel-box">
+            <div class="panel-title">预置控制</div>
+            <p class="panel-subtitle">一键触达常用机位</p>
+            <div class="extra-grid">
+              <button class="apple-btn extra-btn" onclick="send('1')">1</button>
+              <button class="apple-btn extra-btn" onclick="send('2')">2</button>
+              <button class="apple-btn extra-btn" onclick="send('3')">3</button>
+              <button class="apple-btn extra-btn" onclick="send('4')">4</button>
+              <button class="apple-btn extra-btn" onclick="send('5')">5</button>
+              <button class="apple-btn extra-btn" onclick="send('6')">6</button>
+              <button class="apple-btn extra-btn" onclick="send('7')">7</button>
+              <button class="apple-btn extra-btn" onclick="send('8')">8</button>
+              <button class="apple-btn extra-btn" onclick="send('9')">9</button>
+              <button class="apple-btn extra-btn home-btn" onclick="send('home')">Home</button>
+            </div>
+          </div>
+
+          <div class="panel-box center-core">
+            <div class="panel-title">视角控制</div>
+            <div class="core-rim">
+              <button class="apple-btn ctl-btn dir-btn core-btn dir-up" onclick="send('up')">&#x4E0A;</button>
+              <button class="apple-btn ctl-btn dir-btn core-btn dir-left" onclick="send('left')">&#x5DE6;</button>
+              <button class="apple-btn ctl-btn dir-btn core-btn dir-right" onclick="send('right')">&#x53F3;</button>
+              <button class="apple-btn ctl-btn dir-btn core-btn dir-down" onclick="send('down')">&#x4E0B;</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-box">
+          <div class="panel-title">镜头控制</div>
+          <p class="panel-subtitle">快速变焦</p>
+          <div class="func-grid">
+            <button class="apple-btn ctl-btn" onclick="send('zoom+')">&#x53D8;&#x7126;+</button>
+            <button class="apple-btn ctl-btn" onclick="send('zoom-')">&#x53D8;&#x7126;-</button>
+          </div>
+        </div>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="debug-row">
+        <button class="apple-btn debug-toggle" id="debugToggleBtn" onclick="toggleDebug()">隐藏调试</button>
+        <button class="apple-btn debug-toggle" onclick="clearDebug()">清空调试</button>
+      </div>
+      <div class="debug-panel" id="debugPanel">
+        <pre class="debug-log" id="debugLog">调试日志已开启</pre>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="/cam/reader.js"></script>
+  <script>
+    const statusEl = document.getElementById('status');
+    const videoStatusEl = document.getElementById('videoStatus');
+    const padBtn = document.getElementById('padBtn');
+    const videoShell = document.getElementById('videoShell');
+    const padOverlay = document.getElementById('padOverlay');
+    const liveDot = document.getElementById('liveDot');
+    const liveText = document.getElementById('liveText');
+    const latencyText = document.getElementById('latencyText');
+    const webrtcFrame = document.getElementById('webrtcFrame');
+    const debugPanel = document.getElementById('debugPanel');
+    const debugLog = document.getElementById('debugLog');
+    const debugToggleBtn = document.getElementById('debugToggleBtn');
+    const IS_WECHAT = /MicroMessenger/i.test(navigator.userAgent || '');
+
+    let padVisible = false;
+    const FIXED_WEBRTC_URL = location.origin + '/webrtc/?controls=0&muted=1&autoplay=1&playsinline=1';
+    const FIXED_STREAM_URL = FIXED_WEBRTC_URL;
+    let currentStreamUrl = FIXED_STREAM_URL;
+    let ignoreClickUntil = 0;
+    let autoStartRetries = 0;
+    const MAX_AUTOSTART_RETRIES = 30;
+    let streamHealthTimer = null;
+    let playbackGuardTimer = null;
+    let lastVideoTime = -1;
+    let stillCount = 0;
+    let noSourceReloadCount = 0;
+    let debugVisible = false;
+    let webrtcReader = null;
+    let webrtcRetryTimer = null;
+    let webrtcRetryCount = 0;
+    let webrtcUserActivated = false;
+    let webrtcHasTrack = false;
+    let webrtcStartInProgress = false;
+    let webrtcStartWatchdog = null;
+    let webrtcEnsureTimer = null;
+    const API_BASE = location.pathname.startsWith('/cam') ? '/cam/api' : '/api';
+
+
+    function setVideoStatus(text) {
+      if (!videoStatusEl) return;
+      const v = (text || '').trim();
+      videoStatusEl.textContent = v;
+      videoStatusEl.style.display = v ? 'block' : 'none';
+    }
+
+    function t(s){
+      const map = {
+        noStream: '\u672A\u9009\u62E9\u89C6\u9891\u6D41',
+        cannotEmbed: '',
+        videoErr: '\u89C6\u9891\u9519\u8BEF\uFF1A',
+        sending: '\u53D1\u9001\u4E2D\uFF1A',
+        success: '\u6210\u529F\uFF1A',
+        failed: '\u5931\u8D25\uFF1A',
+        error: '\u9519\u8BEF\uFF1A',
+        missCfg: '\u63A7\u5236\u63A5\u53E3\u672A\u914D\u7F6E\uFF1A\u8BF7\u586B\u5199TUYA_CLIENT_ID / TUYA_CLIENT_SECRET / TUYA_DEVICE_ID / TUYA_REMOTE_ID',
+        pad: '\u6447\u6746',
+        hidePad: '\u9690\u85CF\u6447\u6746'
+      };
+      return map[s] || s;
+    }
+
+    function isWebRtcPlayableUrl(url) {
+      return url.includes(':8889/cam/');
+    }
+    function normalizeToWebRtcPage(url) {
+      if (!isWebRtcPlayableUrl(url)) return url;
+      const base = url.split('?')[0].replace(/\/$/, '') + '/';
+      return base + '?controls=0&muted=1&autoplay=1&playsinline=1';
+    }
+    function isCurrentWebRtcMode() {
+      return isWebRtcPlayableUrl(currentStreamUrl || '');
+    }
+
+    function stopWebRtcReader() {
+      if (webrtcRetryTimer) {
+        clearTimeout(webrtcRetryTimer);
+        webrtcRetryTimer = null;
+      }
+      if (webrtcStartWatchdog) {
+        clearTimeout(webrtcStartWatchdog);
+        webrtcStartWatchdog = null;
+      }
+      webrtcStartInProgress = false;
+      if (webrtcReader) {
+        try { webrtcReader.close(); } catch (_) {}
+        webrtcReader = null;
+      }
+    }
+
+    function scheduleWebRtcRetry() {
+      if (!isCurrentWebRtcMode()) return;
+      if (webrtcRetryTimer) return;
+      const delay = webrtcUserActivated ? 900 : Math.min(8000, 1200 + webrtcRetryCount * 800);
+      webrtcRetryCount += 1;
+      appendDebug(`[webrtc] retry in ${delay}ms (#${webrtcRetryCount})`);
+      webrtcRetryTimer = setTimeout(() => {
+        webrtcRetryTimer = null;
+        startWebRtcReader();
+      }, delay);
+    }
+
+    function startWebRtcReader() {
+      if (!isCurrentWebRtcMode()) return;
+      if (webrtcStartInProgress) return;
+
+      stopWebRtcReader();
+      webrtcStartInProgress = true;
+      webrtcHasTrack = false;
+
+      const video = document.getElementById('v');
+      if (!video) { webrtcStartInProgress = false; return; }
+
+      video.muted = true;
+      video.autoplay = true;
+      video.playsInline = true;
+
+      const whep = new URL('whep', FIXED_WEBRTC_URL).toString();
+      try {
+        webrtcReader = new MediaMTXWebRTCReader({
+          url: whep,
+          onError: (err) => {
+            webrtcStartInProgress = false;
+            appendDebug(`[webrtc] error: ${err}`);
+            setLiveState('bad', '重连中');
+            scheduleWebRtcRetry();
+          },
+          onTrack: (evt) => {
+            webrtcStartInProgress = false;
+            webrtcHasTrack = true;
+            webrtcRetryCount = 0;
+            video.srcObject = evt.streams[0];
+            const playPromise = video.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+              playPromise.then(() => {
+                              }).catch(() => {
+                              });
+            }
+            setLiveState('ok', 'WebRTC');
+            setVideoStatus('');
+          },
+        });
+
+        webrtcStartWatchdog = setTimeout(() => {
+          webrtcStartWatchdog = null;
+          if (!webrtcHasTrack && isCurrentWebRtcMode()) {
+            webrtcStartInProgress = false;
+            appendDebug('[webrtc] watchdog timeout, restart');
+            try { if (webrtcReader) webrtcReader.close(); } catch (_) {}
+            webrtcReader = null;
+            scheduleWebRtcRetry();
+          }
+        }, webrtcUserActivated ? 2600 : 4200);
+      } catch (e) {
+        webrtcStartInProgress = false;
+        appendDebug(`[webrtc] init fail: ${e?.message || e}`);
+        scheduleWebRtcRetry();
+      }
+    }
+
+    function keepPlaying(video) {
+      video.addEventListener('pause', () => { if (!video.ended) tryPlay(video); });
+    }
+
+    function tryPlay(video, fromAuto = false) {
+      const p = video.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          if (fromAuto) {
+          }
+        });
+      }
+    }
+
+    function getDefaultPlayableStream() {
+      return FIXED_STREAM_URL;
+    }
+
+    function syncPresetToCurrent(_) {}
+
+    async function probeLatencyMs() {
+      const t0 = performance.now();
+      const probeUrl = location.origin + '/cam/reader.js';
+      try {
+        await fetch(probeUrl, { mode: 'no-cors', cache: 'no-store' });
+        return Math.round(performance.now() - t0);
+      } catch (_) {
+        return -1;
+      }
+    }
+
+    function startLatencyProbe() {
+      const tick = async () => {
+        const ms = await probeLatencyMs();
+        if (latencyText) latencyText.textContent = ms >= 0 ? `${ms}ms` : '--ms';
+      };
+      tick();
+      setInterval(tick, 3000);
+    }
+
+    function autoStartVideo() {
+      currentStreamUrl = getDefaultPlayableStream();
+      syncPresetToCurrent(currentStreamUrl);
+      autoStartRetries = 0;
+      loadVideo(currentStreamUrl);
+
+      const video = document.getElementById('v');
+      const timer = setInterval(() => {
+        autoStartRetries += 1;
+        if (isCurrentWebRtcMode()) {
+          clearInterval(timer);
+          return;
+        }
+        const playing = video.readyState >= 2 && !video.paused;
+        if (playing) {
+          clearInterval(timer);
+          return;
+        }
+        if (autoStartRetries >= MAX_AUTOSTART_RETRIES) {
+          clearInterval(timer);
+          if (video.paused) {
+            setVideoStatus('自动起播耗时较长，仍在后台保活重试');
+          }
+          return;
+        }
+        loadVideo(currentStreamUrl);
+      }, 1500);
+    }
+
+    function setLiveState(level, text) {
+      liveText.textContent = text;
+      liveDot.classList.remove('live-ok', 'live-warn', 'live-bad');
+      if (level === 'ok') liveDot.classList.add('live-ok');
+      else if (level === 'warn') liveDot.classList.add('live-warn');
+      else liveDot.classList.add('live-bad');
+    }
+
+    function startStreamHealthMonitor() {
+      const video = document.getElementById('v');
+      if (streamHealthTimer) clearInterval(streamHealthTimer);
+      lastVideoTime = -1;
+      stillCount = 0;
+      setLiveState('bad', '检测中');
+
+      streamHealthTimer = setInterval(() => {
+        if (isCurrentWebRtcMode()) {
+          setLiveState('ok', 'WebRTC');
+          return;
+        }
+        if (!video.src && !video.currentSrc) {
+          setLiveState('bad', '未加载');
+          return;
+        }
+        if (video.readyState < 2) {
+          setLiveState('bad', '缓冲中');
+          return;
+        }
+
+        const t = Number(video.currentTime || 0);
+        if (lastVideoTime < 0) {
+          lastVideoTime = t;
+          setLiveState('warn', '预热中');
+          return;
+        }
+
+        const dt = t - lastVideoTime;
+        lastVideoTime = t;
+
+        if (dt > 0.02) {
+          stillCount = 0;
+          setLiveState('ok', '实时');
+          return;
+        }
+
+        stillCount += 1;
+        if (stillCount >= 6) {
+          setLiveState('warn', '疑似静止');
+        }
+      }, 1000);
+    }
+
+    function startPlaybackGuard() {
+      const video = document.getElementById('v');
+      if (playbackGuardTimer) clearInterval(playbackGuardTimer);
+
+      playbackGuardTimer = setInterval(() => {
+        if (isCurrentWebRtcMode()) {
+          const v = document.getElementById('v');
+          if (v && v.paused) {
+            const p = v.play();
+            if (p && typeof p.catch === 'function') {
+              p.catch(() => {});
+            }
+          }
+          if (!webrtcHasTrack && webrtcUserActivated) {
+            scheduleWebRtcRetry();
+          }
+          return;
+        }
+        const noSource = !video.currentSrc && !video.src;
+        const stalled = video.readyState < 2 || video.paused;
+
+        if (noSource) {
+          noSourceReloadCount += 1;
+          if (noSourceReloadCount >= 3) {
+            if (!currentStreamUrl) {
+              currentStreamUrl = getDefaultPlayableStream();
+              syncPresetToCurrent(currentStreamUrl);
+            }
+            loadVideo(currentStreamUrl);
+            noSourceReloadCount = 0;
+          }
+          return;
+        }
+
+        noSourceReloadCount = 0;
+
+        if (stalled) {
+          tryPlay(video, true);
+          return;
+        }
+
+        const t = Number(video.currentTime || 0);
+        if (lastVideoTime >= 0 && (t - lastVideoTime) <= 0.001) {
+          tryPlay(video, true);
+        }
+      }, 3000);
+    }
+
+    function loadVideo(url) {
+      const video = document.getElementById('v');
+      keepPlaying(video);
+      const target = url || currentStreamUrl;
+      if (!target) { setVideoStatus(t('noStream')); return; }
+
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+
+      if (isWebRtcPlayableUrl(target)) {
+        currentStreamUrl = FIXED_WEBRTC_URL;
+        webrtcHasTrack = false;
+        if (webrtcFrame) {
+          webrtcFrame.style.display = 'block';
+          webrtcFrame.style.pointerEvents = 'auto';
+          webrtcFrame.src = FIXED_WEBRTC_URL;
+        }
+        video.style.display = 'none';
+        stopWebRtcReader();
+        setVideoStatus('正在连接 WebRTC...');
+        return;
+      }
+
+      stopWebRtcReader();
+      if (webrtcFrame) {
+        webrtcFrame.style.display = 'none';
+        webrtcFrame.style.pointerEvents = 'none';
+        webrtcFrame.src = 'about:blank';
+      }
+      video.style.display = 'block';
+      setVideoStatus('仅启用 WebRTC');
+    }
+
+    function applyStream() {
+      currentStreamUrl = FIXED_STREAM_URL;
+      loadVideo(currentStreamUrl);
+    }
+    function openStream() { window.open(FIXED_STREAM_URL, '_blank'); }
+
+    function nowStamp() {
+      return new Date().toLocaleTimeString();
+    }
+
+    function appendDebug(line) {
+      if (!debugLog) return;
+      const prev = debugLog.textContent || '';
+      const next = `${nowStamp()} ${line}`;
+      const merged = prev ? `${prev}\n${next}` : next;
+      const lines = merged.split('\n');
+      debugLog.textContent = lines.slice(-120).join('\n');
+      if (debugVisible && debugPanel) debugPanel.scrollTop = debugPanel.scrollHeight;
+    }
+
+    function clearDebug() {
+      if (debugLog) debugLog.textContent = '调试日志已清空';
+    }
+
+    function toggleDebug() {
+      debugVisible = !debugVisible;
+      if (!debugPanel || !debugToggleBtn) return;
+      if (debugVisible) {
+        debugPanel.classList.remove('hide');
+        debugToggleBtn.textContent = '隐藏调试';
+      } else {
+        debugPanel.classList.add('hide');
+        debugToggleBtn.textContent = '显示调试';
+      }
+    }
+
+    function initUiState() {
+      if (debugPanel) debugPanel.classList.add('hide');
+      if (debugToggleBtn) debugToggleBtn.textContent = '显示调试';
+    }
+
+    async function warmupPlayback() {
+      const video = document.getElementById('v');
+      if (!video) return;
+      video.muted = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      try { await video.play(); } catch (_) {}
+    }
+
+    function startAutoWebRtcBootstrap() {
+      if (!isCurrentWebRtcMode()) return;
+      webrtcUserActivated = true;
+      warmupPlayback();
+      startWebRtcReader();
+
+      if (webrtcEnsureTimer) clearInterval(webrtcEnsureTimer);
+      webrtcEnsureTimer = setInterval(() => {
+        if (!isCurrentWebRtcMode()) return;
+        if (webrtcHasTrack) {
+          clearInterval(webrtcEnsureTimer);
+          webrtcEnsureTimer = null;
+          return;
+        }
+        startWebRtcReader();
+      }, 1200);
+    }
+
+    const HOLD_KEYS = new Set([]);
+    const PRESET_BURST_KEYS = new Set([
+      'up', 'down', 'left', 'right',
+      'zoom+', 'zoom-',
+      '1', '2', '3', '4', '5', '6', '7', '8', '9', 'home',
+    ]);
+    const PRESET_BURST_COUNT = 5;
+    const PRESET_BURST_INTERVAL_MS = 120;
+    const HOLD_DURATION_MS = 8000;
+    const HOLD_INTERVAL_MS = 180;
+    const HOLD_MAX_INFLIGHT = 2;
+
+    async function sendOnce(key) {
+      const t0 = performance.now();
+      try {
+        const r = await fetch(`${API_BASE}/control`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key })
+        });
+        const text = await r.text();
+        let j = {};
+        try {
+          j = JSON.parse(text || '{}');
+        } catch (_) {
+          j = { ok: false, error: 'invalid json', raw: text };
+        }
+        const cost = Math.round(performance.now() - t0);
+        appendDebug(`[${key}] HTTP ${r.status} ${cost}ms -> ${JSON.stringify(j)}`);
+        return j;
+      } catch (e) {
+        const cost = Math.round(performance.now() - t0);
+        const msg = e?.message || String(e);
+        appendDebug(`[${key}] NETWORK ${cost}ms -> ${msg}`);
+        throw e;
+      }
+    }
+
+    async function sendHoldOneSecond(key) {
+      const deadline = Date.now() + HOLD_DURATION_MS;
+      let inflight = 0;
+      let sent = 0;
+      let done = false;
+      let firstError = null;
+
+      return await new Promise((resolve) => {
+        const pump = () => {
+          if (done) return;
+
+          while (Date.now() < deadline && inflight < HOLD_MAX_INFLIGHT && !firstError) {
+            inflight += 1;
+            sent += 1;
+            sendOnce(key)
+              .then((j) => {
+                if (!j?.ok && !firstError) firstError = j;
+              })
+              .catch((e) => {
+                if (!firstError) firstError = { ok: false, error: e?.message || String(e) };
+              })
+              .finally(() => {
+                inflight -= 1;
+                if (done) return;
+                if (firstError && inflight === 0) {
+                  done = true;
+                  resolve(firstError);
+                  return;
+                }
+                if (Date.now() >= deadline && inflight === 0) {
+                  done = true;
+                  appendDebug(`[${key}] HOLD done, sent=${sent}`);
+                  resolve({ ok: true, key, sent });
+                }
+              });
+          }
+
+          if (Date.now() >= deadline && inflight === 0) {
+            done = true;
+            appendDebug(`[${key}] HOLD done, sent=${sent}`);
+            resolve({ ok: true, key, sent });
+            return;
+          }
+
+          if (!done) setTimeout(pump, HOLD_INTERVAL_MS);
+        };
+
+        pump();
+      });
+    }
+
+    async function sendPresetBurst(key) {
+      let last = null;
+      for (let i = 0; i < PRESET_BURST_COUNT; i += 1) {
+        last = await sendOnce(key);
+        if (!last?.ok) return last;
+        if (i < PRESET_BURST_COUNT - 1) {
+          await new Promise(resolve => setTimeout(resolve, PRESET_BURST_INTERVAL_MS));
+        }
+      }
+      appendDebug(`[${key}] BURST done, sent=${PRESET_BURST_COUNT}`);
+      return last || { ok: true };
+    }
+
+    async function send(key) {
+      statusEl.textContent = t('sending') + key + '...';
+      try {
+        const j = HOLD_KEYS.has(key)
+          ? await sendHoldOneSecond(key)
+          : (PRESET_BURST_KEYS.has(key) ? await sendPresetBurst(key) : await sendOnce(key));
+        if (j.ok) statusEl.textContent = t('success') + key;
+        else if (j.error === 'missing config') statusEl.textContent = t('missCfg');
+        else statusEl.textContent = t('failed') + JSON.stringify(j);
+      } catch (e) {
+        statusEl.textContent = t('error') + e.message;
+      }
+    }
+
+
+    function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+    async function toggleFullscreen() {
+      if (!isFullscreen()) {
+        try {
+          if (videoShell.requestFullscreen) await videoShell.requestFullscreen();
+          else if (videoShell.webkitRequestFullscreen) videoShell.webkitRequestFullscreen();
+        } catch (_) {}
+      } else {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    }
+
+    function togglePad() {
+      ignoreClickUntil = Date.now() + 300;
+      padVisible = !padVisible;
+      if (padVisible) padOverlay.classList.add('show'); else padOverlay.classList.remove('show');
+      padBtn.textContent = padVisible ? t('hidePad') : t('pad');
+    }
+
+    function handleVideoShellClick(ev) {
+      if (Date.now() < ignoreClickUntil) return;
+      const t = ev.target;
+      if (!t) return;
+      if (t.closest('button') || t.closest('.video-toolbar') || t.closest('.fs-overlay') || t.closest('.stream-bar')) return;
+      toggleFullscreen();
+    }
+
+    videoShell.addEventListener('click', handleVideoShellClick);
+    const video = document.getElementById('v');
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+
+    video.addEventListener('click', () => tryPlay(video), { passive: true });
+    video.addEventListener('loadedmetadata', () => tryPlay(video, true));
+    video.addEventListener('canplay', () => tryPlay(video, true));
+    video.addEventListener('stalled', () => tryPlay(video, true));
+    video.addEventListener('waiting', () => tryPlay(video, true));
+
+    window.addEventListener('beforeunload', () => {
+      stopWebRtcReader();
+      if (webrtcEnsureTimer) clearInterval(webrtcEnsureTimer);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        tryPlay(video);
+        if (isCurrentWebRtcMode() && !webrtcHasTrack) startAutoWebRtcBootstrap();
+      }
+    });
+
+    // WeChat privileged event: improves autoplay/WebRTC startup success without manual taps.
+    document.addEventListener('WeixinJSBridgeReady', () => {
+      if (isCurrentWebRtcMode() && !webrtcHasTrack) {
+        startAutoWebRtcBootstrap();
+      }
+    });
+
+    initUiState();
+    setVideoStatus('');
+    autoStartVideo();
+    startAutoWebRtcBootstrap();
+    startStreamHealthMonitor();
+    startPlaybackGuard();
+    startLatencyProbe();
+  </script>
+</body>
+</html>

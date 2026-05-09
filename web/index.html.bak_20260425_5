@@ -1,0 +1,433 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>&#x6444;&#x50CF;&#x5934;&#x63A7;&#x5236;&#x9762;&#x677F;</title>
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --panel: #151922;
+      --panel-border: #2b3342;
+      --btn: #2a3140;
+      --btn-border: #3b4558;
+      --btn-text: #eef2ff;
+      --ok: #2ea55f;
+      --ok-border: #46bf79;
+      --shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background: #0f131a; color:#f2f5ff; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif; }
+    .wrap { max-width:980px; margin:0 auto; padding:10px; padding-bottom:64px; }
+    .card { background:var(--panel); border:1px solid var(--panel-border); border-radius:14px; padding:8px; margin-bottom:8px; }
+    .video-shell { position:relative; border-radius:14px; overflow:hidden; background:#000; border:1px solid #2b3342; }
+    video { width:100%; display:block; background:#000; -webkit-user-select:none; user-select:none; touch-action:manipulation; }
+    video::-webkit-media-controls { display:none !important; }
+    video::-webkit-media-controls-enclosure { display:none !important; }
+    .live-badge { position:absolute; right:8px; bottom:8px; height:20px; line-height:20px; padding:0 7px; border-radius:999px; font-size:10px; color:#fff; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.20); letter-spacing:0.2px; z-index:30; display:flex; align-items:center; gap:5px; }
+    .live-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+    .live-ok { background:#2ecc71; box-shadow:0 0 0 2px rgba(46,204,113,0.2); }
+    .live-warn { background:#f1c40f; box-shadow:0 0 0 2px rgba(241,196,15,0.2); }
+    .live-bad { background:#ff4d4f; box-shadow:0 0 0 2px rgba(255,77,79,0.2); }
+    .video-toolbar { position:absolute; top:8px; right:8px; z-index:31; display:flex; gap:6px; }
+    .apple-btn { border:1px solid var(--btn-border); background:var(--btn); color:var(--btn-text); border-radius:10px; transition: background-color .08s ease, border-color .08s ease; font-weight:600; }
+    .apple-btn:active { transform:none; background: #3a475e; border-color:#567099; }
+    .tiny { height:28px; padding:0 8px; font-size:11px; border-radius:9px; }
+    .status { min-height:18px; margin-top:8px; font-size:12px; color:#a7c5ff; letter-spacing:.1px; }
+    .controls-layout { display:grid; grid-template-columns:1.1fr 0.9fr; gap:8px; align-items:start; }
+    .dpad { display:grid; grid-template-columns:repeat(3, 1fr); grid-template-rows:repeat(3, 38px); gap:6px; }
+    .blank { opacity:0; pointer-events:none; }
+    .ctl-btn { height:38px; font-size:13px; border-radius:10px; }
+    .ok-btn { background:var(--ok); border-color:var(--ok-border); color:#f8fffb; font-weight:700; }
+    .ctl-btn:active { transform:none; background: linear-gradient(180deg, rgba(96,132,190,0.95), rgba(74,106,165,0.95)); border-color: rgba(194,222,255,0.58); color:#ffffff; }
+    .ok-btn:active { transform:none; background: linear-gradient(180deg, #2fbe66, #269d55); border-color: rgba(132,255,178,0.68); color:#ffffff; }
+    .joy-center:active { transform: translate(-50%,-50%) !important; background:#259653; border-color:#46bf79; }
+    .func-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; }
+    .fs-overlay { position:absolute; left:0; right:0; bottom:max(8px, env(safe-area-inset-bottom)); display:none; z-index:40; padding:0 8px; pointer-events:none; }
+    .fs-overlay.show { display:block; }
+    .joy-wrap { width:min(420px, 90vw); margin: 8px auto 0; pointer-events:auto; }
+    .joy-stack { display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .joystick { position:relative; width:min(190px, 46vw); height:min(190px, 46vw); margin:0 auto; border-radius:50%; background:#1a202b; border:1px solid #3a4558; }
+    .joy-btn { position:absolute; width:46px; height:46px; border-radius:50%; font-size:12px; border:1px solid #4a556b; background:#232b39; color:#fff; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+    .joy-btn:active { background:#415273; border-color:#6f87b8; }
+    .joy-up { left:50%; top:10px; transform:translateX(-50%); }
+    .joy-down { left:50%; bottom:10px; transform:translateX(-50%); }
+    .joy-left { left:10px; top:50%; transform:translateY(-50%); }
+    .joy-right { right:10px; top:50%; transform:translateY(-50%); }
+    .joy-center { left:50%; top:50%; transform:translate(-50%,-50%); width:56px; height:56px; background:var(--ok); border-color:var(--ok-border); font-weight:700; margin:0; }
+    .joy-zoom-plus { left:40px; bottom:22px; transform:none; width:30px; height:20px; border-radius:10px; font-size:10px; }
+    .joy-zoom-minus { right:40px; bottom:22px; transform:none; width:30px; height:20px; border-radius:10px; font-size:10px; }
+            .stream-bar { position:fixed; left:8px; right:8px; bottom:max(6px, env(safe-area-inset-bottom)); z-index:50; background:#141a24; border:1px solid #2f394b; border-radius:10px; padding:4px; display:grid; grid-template-columns:1fr auto auto; gap:5px; align-items:center; }
+    .stream-bar select { height:30px; border-radius:8px; border:1px solid #3b4558; background:#111722; color:#dde7ff; padding:0 7px; font-size:10px; }
+    .stream-bar button { height:30px; font-size:10px; padding:0 8px; border-radius:8px; }
+    .video-shell:fullscreen .fs-overlay, .video-shell:-webkit-full-screen .fs-overlay { display:block; }
+    .video-shell:fullscreen, .video-shell:-webkit-full-screen { width:100vw; height:100vh; border-radius:0; border:none; }
+    .video-shell:fullscreen video, .video-shell:-webkit-full-screen video { width:100%; height:100%; object-fit:contain; }
+    @media (max-width:760px) {
+      .controls-layout { grid-template-columns:1fr; }
+      .ctl-btn { height:34px; font-size:12px; }
+      .dpad { grid-template-rows:repeat(3, 34px); gap:5px; }
+      .func-grid { gap:6px; }
+      .joy-wrap { width:min(340px, 92vw); margin-top: 10px; }
+      .joystick { width:min(164px, 44vw); height:min(164px, 44vw); }
+      .joy-btn { width:40px; height:40px; font-size:11px; }
+      .joy-center { width:50px; height:50px; font-size:11px; }
+      .joy-zoom-plus, .joy-zoom-minus { width:28px; height:18px; font-size:9px; bottom:20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card video-card">
+      <div id="videoShell" class="video-shell">
+        <div id="liveBadge" class="live-badge"><span id="liveDot" class="live-dot live-bad"></span><span id="liveText">检测中</span></div>
+        <div class="video-toolbar">
+          <button class="apple-btn tiny" onclick="togglePad()" id="padBtn">&#x6447;&#x6746;</button>
+        </div>
+
+        <video id="v" autoplay muted playsinline webkit-playsinline></video>
+
+        <div class="fs-overlay" id="padOverlay">
+          <div class="joy-wrap">
+            <div class="joy-stack">
+              <div class="joystick">
+                <button class="joy-btn joy-up" onclick="send('up')">&#x4E0A;</button>
+                <button class="joy-btn joy-down" onclick="send('down')">&#x4E0B;</button>
+                <button class="joy-btn joy-left" onclick="send('left')">&#x5DE6;</button>
+                <button class="joy-btn joy-right" onclick="send('right')">&#x53F3;</button>
+                <button class="joy-btn joy-center" onclick="send('ok')">OK</button>
+                <button class="joy-btn joy-zoom-plus" onclick="send('zoom+')">+</button>
+                <button class="joy-btn joy-zoom-minus" onclick="send('zoom-')">-</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="status" id="videoStatus"></div>
+    </div>
+
+    <div class="card">
+      <div class="controls-layout">
+        <div class="dpad">
+          <div class="blank"></div>
+          <button class="apple-btn ctl-btn" onclick="send('up')">&#x4E0A;</button>
+          <div class="blank"></div>
+
+          <button class="apple-btn ctl-btn" onclick="send('left')">&#x5DE6;</button>
+          <button class="apple-btn ctl-btn ok-btn" onclick="send('ok')">OK</button>
+          <button class="apple-btn ctl-btn" onclick="send('right')">&#x53F3;</button>
+
+          <div class="blank"></div>
+          <button class="apple-btn ctl-btn" onclick="send('down')">&#x4E0B;</button>
+          <div class="blank"></div>
+        </div>
+
+        <div class="func-grid">
+                              <button class="apple-btn ctl-btn" onclick="send('zoom+')">&#x53D8;&#x7126;+</button>
+          <button class="apple-btn ctl-btn" onclick="send('zoom-')">&#x53D8;&#x7126;-</button>
+          <button class="apple-btn ctl-btn" onclick="send('preset1')">&#x9884;&#x7F6E;&#x4F4D;1</button>
+          <button class="apple-btn ctl-btn" onclick="send('preset2')">&#x9884;&#x7F6E;&#x4F4D;2</button>
+          <button class="apple-btn ctl-btn" onclick="send('preset3')">&#x9884;&#x7F6E;&#x4F4D;3</button>
+          <button class="apple-btn ctl-btn" onclick="send('preset4')">&#x9884;&#x7F6E;&#x4F4D;4</button>
+        </div>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <div class="stream-bar">
+    <select id="streamPreset">
+      <option value="http://ddns.c6666.com:8888/cam/index.m3u8">HLS&#x6D41;&#xFF1A;http://ddns.c6666.com:8888/cam/index.m3u8</option>
+      <option value="http://ddns.c6666.com:8888/cam/">HLS&#x9875;&#x9762;&#xFF1A;http://ddns.c6666.com:8888/cam/</option>
+      <option value="http://ddns.c6666.com:8889/cam/">WebRTC&#x9875;&#x9762;&#xFF1A;http://ddns.c6666.com:8889/cam/</option>
+      <option value="rtsp://ddns.c6666.com:8554/cam">RTSP&#x6D41;&#xFF1A;rtsp://ddns.c6666.com:8554/cam</option>
+    </select>
+    <button class="apple-btn" onclick="applyStream()">&#x5E94;&#x7528;</button>
+    <button class="apple-btn" onclick="openStream()">&#x6253;&#x5F00;</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+    const statusEl = document.getElementById('status');
+    const videoStatusEl = document.getElementById('videoStatus');
+    const padBtn = document.getElementById('padBtn');
+    const videoShell = document.getElementById('videoShell');
+    const padOverlay = document.getElementById('padOverlay');
+    const streamPreset = document.getElementById('streamPreset');
+    const liveDot = document.getElementById('liveDot');
+    const liveText = document.getElementById('liveText');
+
+    let hlsInstance = null;
+    let padVisible = false;
+    let currentStreamUrl = streamPreset.value;
+    let ignoreClickUntil = 0;
+    let autoStartRetries = 0;
+    const MAX_AUTOSTART_RETRIES = 30;
+    let streamHealthTimer = null;
+    let playbackGuardTimer = null;
+    let lastVideoTime = -1;
+    let stillCount = 0;
+
+    function t(s){
+      const map = {
+        noStream: '\u672A\u9009\u62E9\u89C6\u9891\u6D41',
+        cannotEmbed: '\u5F53\u524D\u5730\u5740\u65E0\u6CD5\u5728\u5185\u5D4C\u64AD\u653E\u5668\u64AD\u653E\uFF0C\u8BF7\u4F7F\u7528\u201C\u6253\u5F00\u201D\u3002',
+        loadedNative: '\u5DF2\u52A0\u8F7D\uFF08\u539F\u751FHLS\uFF09',
+        loadedHlsJs: '\u5DF2\u52A0\u8F7D\uFF08hls.js\uFF09',
+        videoErr: '\u89C6\u9891\u9519\u8BEF\uFF1A',
+        hlsUnsupported: '\u5F53\u524D\u6D4F\u89C8\u5668\u4E0D\u652F\u6301HLS',
+        sending: '\u53D1\u9001\u4E2D\uFF1A',
+        success: '\u6210\u529F\uFF1A',
+        failed: '\u5931\u8D25\uFF1A',
+        error: '\u9519\u8BEF\uFF1A',
+        missCfg: '\u63A7\u5236\u63A5\u53E3\u672A\u914D\u7F6E\uFF1A\u8BF7\u586B\u5199TUYA_CLIENT_ID / TUYA_CLIENT_SECRET / TUYA_DEVICE_ID / TUYA_REMOTE_ID',
+        pad: '\u6447\u6746',
+        hidePad: '\u9690\u85CF\u6447\u6746'
+      };
+      return map[s] || s;
+    }
+
+    function isHlsPlayableUrl(url) { return url.endsWith('.m3u8') || url.includes(':8888/cam/'); }
+    function normalizeToM3u8(url) {
+      if (url.endsWith('.m3u8')) return url;
+      if (url.includes(':8888/cam/')) return 'http://ddns.c6666.com:8888/cam/index.m3u8';
+      return url;
+    }
+
+    function keepPlaying(video) {
+      video.addEventListener('pause', () => { if (!video.ended) tryPlay(video); });
+    }
+
+    function tryPlay(video, fromAuto = false) {
+      const p = video.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          if (fromAuto) {
+            videoStatusEl.textContent = '自动播放受限，点击画面可恢复播放';
+          }
+        });
+      }
+    }
+
+    function getDefaultPlayableStream() {
+      const preferred = streamPreset.value;
+      if (isHlsPlayableUrl(preferred)) return normalizeToM3u8(preferred);
+      const opts = Array.from(streamPreset.options || []);
+      const firstPlayable = opts.find(o => isHlsPlayableUrl(o.value));
+      return firstPlayable ? normalizeToM3u8(firstPlayable.value) : preferred;
+    }
+
+    function syncPresetToCurrent(url) {
+      const opts = Array.from(streamPreset.options || []);
+      const hit = opts.find(o => normalizeToM3u8(o.value) === url);
+      if (hit) streamPreset.value = hit.value;
+    }
+
+    function autoStartVideo() {
+      currentStreamUrl = getDefaultPlayableStream();
+      syncPresetToCurrent(currentStreamUrl);
+      autoStartRetries = 0;
+      loadVideo(currentStreamUrl);
+
+      const video = document.getElementById('v');
+      const timer = setInterval(() => {
+        autoStartRetries += 1;
+        const playing = video.readyState >= 2 && !video.paused;
+        if (playing) {
+          clearInterval(timer);
+          return;
+        }
+        if (autoStartRetries >= MAX_AUTOSTART_RETRIES) {
+          clearInterval(timer);
+          if (video.paused) {
+            videoStatusEl.textContent = '自动起播耗时较长，仍在后台保活重试';
+          }
+          return;
+        }
+        loadVideo(currentStreamUrl);
+      }, 1500);
+    }
+
+    function setLiveState(level, text) {
+      liveText.textContent = text;
+      liveDot.classList.remove('live-ok', 'live-warn', 'live-bad');
+      if (level === 'ok') liveDot.classList.add('live-ok');
+      else if (level === 'warn') liveDot.classList.add('live-warn');
+      else liveDot.classList.add('live-bad');
+    }
+
+    function startStreamHealthMonitor() {
+      const video = document.getElementById('v');
+      if (streamHealthTimer) clearInterval(streamHealthTimer);
+      lastVideoTime = -1;
+      stillCount = 0;
+      setLiveState('bad', '检测中');
+
+      streamHealthTimer = setInterval(() => {
+        if (!video.src && !video.currentSrc) {
+          setLiveState('bad', '未加载');
+          return;
+        }
+        if (video.readyState < 2) {
+          setLiveState('bad', '缓冲中');
+          return;
+        }
+
+        const t = Number(video.currentTime || 0);
+        if (lastVideoTime < 0) {
+          lastVideoTime = t;
+          setLiveState('warn', '预热中');
+          return;
+        }
+
+        const dt = t - lastVideoTime;
+        lastVideoTime = t;
+
+        if (dt > 0.05) {
+          stillCount = 0;
+          setLiveState('ok', '实时');
+          return;
+        }
+
+        stillCount += 1;
+        if (stillCount >= 4) {
+          setLiveState('warn', '疑似静止');
+        } else {
+          setLiveState('warn', '波动中');
+        }
+      }, 1000);
+    }
+
+    function startPlaybackGuard() {
+      const video = document.getElementById('v');
+      if (playbackGuardTimer) clearInterval(playbackGuardTimer);
+
+      playbackGuardTimer = setInterval(() => {
+        const noSource = !video.currentSrc && !video.src;
+        const stalled = video.readyState < 2 || video.paused;
+        if (noSource || stalled) {
+          if (!currentStreamUrl) {
+            currentStreamUrl = getDefaultPlayableStream();
+            syncPresetToCurrent(currentStreamUrl);
+          }
+          loadVideo(currentStreamUrl);
+          tryPlay(video, true);
+          return;
+        }
+
+        const t = Number(video.currentTime || 0);
+        if (lastVideoTime >= 0 && (t - lastVideoTime) <= 0.001) {
+          tryPlay(video, true);
+        }
+      }, 3000);
+    }
+
+    function loadVideo(url) {
+      const video = document.getElementById('v');
+      keepPlaying(video);
+      const target = url || currentStreamUrl;
+      if (!target) { videoStatusEl.textContent = t('noStream'); return; }
+
+      if (!isHlsPlayableUrl(target)) {
+        videoStatusEl.textContent = t('cannotEmbed');
+        return;
+      }
+
+      const playUrl = normalizeToM3u8(target);
+      currentStreamUrl = playUrl;
+      if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = playUrl;
+        tryPlay(video, true);
+        videoStatusEl.textContent = t('loadedNative');
+        return;
+      }
+
+      if (window.Hls && Hls.isSupported()) {
+        hlsInstance = new Hls({ lowLatencyMode: true });
+        hlsInstance.loadSource(playUrl);
+        hlsInstance.attachMedia(video);
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+          tryPlay(video, true);
+          videoStatusEl.textContent = t('loadedHlsJs');
+        });
+        hlsInstance.on(Hls.Events.ERROR, (_, data) => {
+          videoStatusEl.textContent = t('videoErr') + data.type + ' / ' + data.details;
+        });
+      } else {
+        videoStatusEl.textContent = t('hlsUnsupported');
+      }
+    }
+
+    function applyStream() {
+      currentStreamUrl = normalizeToM3u8(streamPreset.value);
+      loadVideo(currentStreamUrl);
+    }
+    function openStream() { window.open(streamPreset.value, '_blank'); }
+
+    async function send(key) {
+      statusEl.textContent = t('sending') + key + '...';
+      try {
+        const r = await fetch('/api/control', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key })
+        });
+        const j = await r.json();
+        if (j.ok) statusEl.textContent = t('success') + key;
+        else if (j.error === 'missing config') statusEl.textContent = t('missCfg');
+        else statusEl.textContent = t('failed') + JSON.stringify(j);
+      } catch (e) {
+        statusEl.textContent = t('error') + e.message;
+      }
+    }
+
+    function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+    async function toggleFullscreen() {
+      if (!isFullscreen()) {
+        try {
+          if (videoShell.requestFullscreen) await videoShell.requestFullscreen();
+          else if (videoShell.webkitRequestFullscreen) videoShell.webkitRequestFullscreen();
+        } catch (_) {}
+      } else {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    }
+
+    function togglePad() {
+      ignoreClickUntil = Date.now() + 300;
+      padVisible = !padVisible;
+      if (padVisible) padOverlay.classList.add('show'); else padOverlay.classList.remove('show');
+      padBtn.textContent = padVisible ? t('hidePad') : t('pad');
+    }
+
+    function handleVideoShellClick(ev) {
+      if (Date.now() < ignoreClickUntil) return;
+      const t = ev.target;
+      if (!t) return;
+      if (t.closest('button') || t.closest('.video-toolbar') || t.closest('.fs-overlay') || t.closest('.stream-bar')) return;
+      toggleFullscreen();
+    }
+
+    videoShell.addEventListener('click', handleVideoShellClick);
+    const video = document.getElementById('v');
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+
+    video.addEventListener('click', () => tryPlay(video), { passive: true });
+    video.addEventListener('loadedmetadata', () => tryPlay(video, true));
+    video.addEventListener('canplay', () => tryPlay(video, true));
+    video.addEventListener('stalled', () => loadVideo(currentStreamUrl));
+    video.addEventListener('waiting', () => tryPlay(video, true));
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) tryPlay(video);
+    });
+
+    autoStartVideo();
+    startStreamHealthMonitor();
+    startPlaybackGuard();
+  </script>
+</body>
+</html>
