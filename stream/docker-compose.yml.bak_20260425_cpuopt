@@ -1,0 +1,27 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx-cam
+    restart: unless-stopped
+    ports:
+      - "8554:8554"
+      - "8888:8888"
+      - "8889:8889"
+      - "8189:8189/udp"
+      - "8189:8189/tcp"
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+
+  cam-publisher:
+    image: lscr.io/linuxserver/ffmpeg:latest
+    container_name: mediamtx-cam-publisher
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    devices:
+      - /dev/video0:/dev/video0
+    command: >
+      -hide_banner -loglevel warning
+      -f v4l2 -framerate 25 -video_size 1280x720 -i /dev/video0
+      -an -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p
+      -g 50 -keyint_min 50 -f rtsp -rtsp_transport tcp rtsp://mediamtx:8554/cam

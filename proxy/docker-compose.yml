@@ -1,0 +1,12 @@
+services:
+  cam-redirect:
+    image: nginx:alpine
+    container_name: cam-redirect
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./redirect.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./origin.crt:/etc/nginx/certs/origin.crt:ro
+      - ./origin.key:/etc/nginx/certs/origin.key:ro
