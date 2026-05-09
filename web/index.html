@@ -305,7 +305,10 @@
           </div>
         </div>
       </div>
-      <div class="status video-status" id="videoStatus"></div>
+      <div class="status video-status" id="videoStatus" style="display:inline;"></div>
+    <span id="digitalDot" class="digital-dot live-bad" style="margin-left:16px;"></span>
+    <span id="digitalTime" class="digital-time" style="margin-left:8px;">--:--:--</span>
+    <span id="digitalLatency" class="digital-latency" style="margin-left:8px;">----ms</span>
     </div>
 
     <div class="card">
@@ -357,11 +360,7 @@
   </div>
 
 
-  <div class="digital-status-bar">
-    <span id="digitalDot" class="digital-dot live-bad"></span>
-    <span id="digitalTime" class="digital-time">--:--:--</span>
-    <span id="digitalLatency" class="digital-latency">----ms</span>
-  </div>
+
 
   <div class="stream-bar">
     <select id="streamPreset">
@@ -384,10 +383,8 @@
     const videoShell = document.getElementById('videoShell');
     const padOverlay = document.getElementById('padOverlay');
     const streamPreset = document.getElementById('streamPreset');
-    const liveDot = document.getElementById('liveDot');
     const digitalDot = document.getElementById('digitalDot');
-    const digitalTime = document.getElementById('digitalTime');
-    const digitalLatency = document.getElementById('digitalLatency');
+
 
     const liveText = document.getElementById('liveText');
     const latencyText = document.getElementById('latencyText');
@@ -623,7 +620,7 @@ function updateDigitalStatus(ms) {
     function startLatencyProbe() {
       const tick = async () => {
         const ms = await probeLatencyMs();
-        if (latencyText) latencyText.textContent = (liveDot && liveDot.classList.contains('live-ok') && ms >= 0) ? `${ms}ms` : '--ms';
+        if (latencyText) latencyText.textContent = (digitalDot && digitalDot.classList.contains('live-ok') && ms >= 0) ? `${ms}ms` : '--ms';
         if (latencyDigital) latencyDigital.textContent = (ms >= 0) ? `${ms}` : '--.--';
         syncLatencyDigitalFromBadge();
         updateDigitalStatus(ms);
@@ -662,11 +659,11 @@ function updateDigitalStatus(ms) {
     }
 
     function setLiveState(level, text) {
-      liveText.textContent = text;
-      liveDot.classList.remove('live-ok', 'live-warn', 'live-bad');
-      if (level === 'ok') liveDot.classList.add('live-ok');
-      else if (level === 'warn') liveDot.classList.add('live-warn');
-      else liveDot.classList.add('live-bad');
+      if (liveText) liveText.textContent = text;
+      digitalDot.classList.remove('live-ok', 'live-warn', 'live-bad');
+      if (level === 'ok') digitalDot.classList.add('live-ok');
+      else if (level === 'warn') digitalDot.classList.add('live-warn');
+      else digitalDot.classList.add('live-bad');
     }
 
     function startStreamHealthMonitor() {
