@@ -933,103 +933,6 @@ function updateDigitalStatus(ms) {
       }, 1200);
     }
 
-    const ZOOM_HOLD_KEYS = new Set(['zoom+', 'zoom-']);
-    const ZOOM_HOLD_START_DELAY_MS = 280;
-    const ZOOM_HOLD_REPEAT_MS = 180;
-    const ZOOM_HOLD_SUPPRESS_CLICK_MS = 260;
-    let zoomHoldKey = '';
-    let zoomHoldStartTimer = null;
-    let zoomHoldRepeatTimer = null;
-    let zoomHoldPointerId = null;
-    let zoomHoldSuppressClickUntil = 0;
-
-    function clearZoomHoldTimers() {
-      if (zoomHoldStartTimer) {
-        clearTimeout(zoomHoldStartTimer);
-        zoomHoldStartTimer = null;
-      }
-      if (zoomHoldRepeatTimer) {
-        clearInterval(zoomHoldRepeatTimer);
-        zoomHoldRepeatTimer = null;
-      }
-    }
-
-    function stopZoomHold() {
-      clearZoomHoldTimers();
-      zoomHoldKey = '';
-      zoomHoldPointerId = null;
-    }
-
-    async function sendZoomHoldTick(key) {
-      try {
-        const j = await sendOnce(key);
-        if (j && j.ok) {
-          activateBtn(key);
-          statusEl.textContent = t('success') + key;
-          return;
-        }
-        appendDebug(`[${key}] HOLD failed -> ${JSON.stringify(j || {})}`);
-        stopZoomHold();
-      } catch (e) {
-        appendDebug(`[${key}] HOLD error -> ${e?.message || String(e)}`);
-        stopZoomHold();
-      }
-    }
-
-    function startZoomHold(ev, key) {
-      if (!ZOOM_HOLD_KEYS.has(key)) return;
-      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
-
-      ev.preventDefault();
-      zoomHoldSuppressClickUntil = Date.now() + ZOOM_HOLD_SUPPRESS_CLICK_MS;
-      stopZoomHold();
-
-      zoomHoldKey = key;
-      zoomHoldPointerId = (ev.pointerId === undefined ? null : ev.pointerId);
-      statusEl.textContent = t('sending') + key + '...';
-
-      const target = ev.currentTarget;
-      if (target && typeof target.setPointerCapture === 'function' && zoomHoldPointerId !== null) {
-        try { target.setPointerCapture(zoomHoldPointerId); } catch (_) {}
-      }
-
-      sendZoomHoldTick(key);
-      zoomHoldStartTimer = setTimeout(() => {
-        if (zoomHoldKey !== key) return;
-        zoomHoldRepeatTimer = setInterval(() => {
-          if (zoomHoldKey !== key) return;
-          sendZoomHoldTick(key);
-        }, ZOOM_HOLD_REPEAT_MS);
-      }, ZOOM_HOLD_START_DELAY_MS);
-    }
-
-    function getSendKeyFromButton(btn) {
-      const expr = (btn && btn.getAttribute('onclick')) || '';
-      const m = expr.match(/send\('([^']+)'\)/);
-      return m ? m[1] : '';
-    }
-
-    function bindZoomHoldButtons() {
-      const zoomBtns = Array.from(document.querySelectorAll('button[onclick*="zoom"]'))
-        .filter((btn) => ZOOM_HOLD_KEYS.has(getSendKeyFromButton(btn)));
-
-      zoomBtns.forEach((btn) => {
-        const key = getSendKeyFromButton(btn);
-        btn.addEventListener('pointerdown', (ev) => startZoomHold(ev, key));
-        btn.addEventListener('pointerup', stopZoomHold);
-        btn.addEventListener('pointercancel', stopZoomHold);
-        btn.addEventListener('click', (ev) => {
-          if (Date.now() < zoomHoldSuppressClickUntil) {
-            ev.preventDefault();
-            ev.stopPropagation();
-          }
-        }, true);
-      });
-
-      window.addEventListener('pointerup', stopZoomHold, { passive: true });
-      window.addEventListener('blur', stopZoomHold);
-    }
-
     const HOLD_KEYS = new Set(['down', 'right']);
     const PRESET_BURST_KEYS = new Set(['preset1', 'preset2', 'preset3', 'preset4']);
     const PRESET_BURST_COUNT = 5;
@@ -1248,7 +1151,6 @@ function updateDigitalStatus(ms) {
     bindIosStartButton();
     setupIosPlaybackNudge();
     initUiState();
-    bindZoomHoldButtons();
     setVideoStatus('');
     autoStartVideo();
     restoreActiveBtns();
