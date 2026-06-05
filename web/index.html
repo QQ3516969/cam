@@ -32,10 +32,12 @@
     .live-ok { background:#2ecc71; box-shadow:0 0 0 2px rgba(46,204,113,0.2); }
     .live-warn { background:#f1c40f; box-shadow:0 0 0 2px rgba(241,196,15,0.2); }
     .live-bad { background:#ff4d4f; box-shadow:0 0 0 2px rgba(255,77,79,0.2); }
-    .video-toolbar { position:absolute; top:8px; right:8px; z-index:31; display:none; gap:6px; }
-    .apple-btn { border:1px solid var(--btn-border); background:var(--btn); color:var(--btn-text); border-radius:10px; transition: background-color .08s ease, border-color .08s ease; font-weight:600; }
+    .video-toolbar { position:absolute; top:8px; right:8px; z-index:31; display:flex; gap:6px; }
+    .apple-btn { border:1px solid var(--btn-border); background:var(--btn); color:var(--btn-text); border-radius:10px; transition: background-color .08s ease, border-color .08s ease; font-weight:600; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
     .apple-btn:active { transform:none; background: #3a475e; border-color:#567099; }
     .tiny { height:28px; padding:0 8px; font-size:11px; border-radius:9px; }
+    .rotate-btn { display:none !important; }
+    .pad-toggle-btn { display:none; min-width:88px; padding:0 12px; }
     .status { min-height:18px; margin-top:8px; font-size:12px; color:#a7c5ff; letter-spacing:.1px; }
     .video-status { min-height:0; margin-top:0; }
     .controls-layout { display:grid; grid-template-columns:1.1fr 0.9fr; gap:8px; align-items:start; }
@@ -56,20 +58,22 @@
     .ok-btn:active { transform:none; background: linear-gradient(180deg, #2fbe66, #269d55); border-color: rgba(132,255,178,0.68); color:#ffffff; }
     .joy-center:active { transform: translate(-50%,-50%) !important; background:#259653; border-color:#46bf79; }
     .func-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; }
-    .fs-overlay { position:absolute; left:0; right:0; bottom:max(8px, env(safe-area-inset-bottom)); display:none; z-index:40; padding:0 8px; pointer-events:none; }
-    .fs-overlay.show { display:block; }
-    .joy-wrap { width:min(420px, 90vw); margin: 8px auto 0; pointer-events:auto; }
+    .fs-overlay { position:absolute; inset:0; display:none; z-index:40; padding:8px; pointer-events:none; overflow:hidden; }
+    .fs-overlay.show { display:none; }
+    .rotate-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9998; display:none; }
+    .rotate-backdrop.show { display:block; }
+    .joy-wrap { position:absolute; left:50%; top:50%; bottom:auto; width:min(294px, 63vw); margin:0; pointer-events:auto; touch-action:none; }
     .joy-stack { display:flex; flex-direction:column; align-items:center; gap:8px; }
-    .joystick { position:relative; width:min(190px, 46vw); height:min(190px, 46vw); margin:0 auto; border-radius:50%; background:#1a202b; border:1px solid #3a4558; }
-    .joy-btn { position:absolute; width:46px; height:46px; border-radius:50%; font-size:12px; border:1px solid #4a556b; background:#232b39; color:#fff; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+    .joystick { position:relative; width:min(133px, 32vw); height:min(133px, 32vw); margin:0 auto; border-radius:50%; background:#1a202b; border:1px solid #3a4558; }
+    .joy-btn { position:absolute; width:32px; height:32px; border-radius:50%; font-size:11px; border:1px solid #4a556b; background:#232b39; color:#fff; display:flex; align-items:center; justify-content:center; touch-action:manipulation; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
     .joy-btn:active { background:#415273; border-color:#6f87b8; }
     .joy-up { left:50%; top:10px; transform:translateX(-50%); }
     .joy-down { left:50%; bottom:10px; transform:translateX(-50%); }
     .joy-left { left:10px; top:50%; transform:translateY(-50%); }
     .joy-right { right:10px; top:50%; transform:translateY(-50%); }
-    .joy-center { left:50%; top:50%; transform:translate(-50%,-50%); width:56px; height:56px; background:var(--ok); border-color:var(--ok-border); font-weight:700; margin:0; }
-    .joy-zoom-plus { left:40px; bottom:22px; transform:none; width:30px; height:20px; border-radius:10px; font-size:10px; }
-    .joy-zoom-minus { right:40px; bottom:22px; transform:none; width:30px; height:20px; border-radius:10px; font-size:10px; }
+    .joy-center { left:50%; top:50%; transform:translate(-50%,-50%); width:40px; height:40px; background:var(--ok); border-color:var(--ok-border); font-weight:700; margin:0; }
+    .joy-zoom-plus { left:28px; bottom:15px; transform:none; width:22px; height:16px; border-radius:8px; font-size:9px; }
+    .joy-zoom-minus { right:28px; bottom:15px; transform:none; width:22px; height:16px; border-radius:8px; font-size:9px; }
             .digital-status-bar {
       display: flex;
       align-items: center;
@@ -116,6 +120,105 @@
     .video-shell:fullscreen, .video-shell:-webkit-full-screen { width:100vw; height:100vh; border-radius:0; border:none; }
     .video-shell:fullscreen video, .video-shell:-webkit-full-screen video { width:100%; height:100%; object-fit:cover; }
     .video-shell:fullscreen .video-toolbar, .video-shell:-webkit-full-screen .video-toolbar { display:flex; }
+    .video-shell:fullscreen .pad-toggle-btn, .video-shell:-webkit-full-screen .pad-toggle-btn { display:inline-flex; }
+    .video-shell:fullscreen .fs-overlay.show, .video-shell:-webkit-full-screen .fs-overlay.show { opacity:0.5; }
+    .video-shell:fullscreen .joystick,
+    .video-shell:-webkit-full-screen .joystick {
+      width: 160px;
+      height: 160px;
+    }
+    .video-shell:fullscreen .joy-zoom-plus,
+    .video-shell:-webkit-full-screen .joy-zoom-plus {
+      left: 22px;
+      bottom: 24px;
+      transform: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 11px;
+    }
+    .video-shell:fullscreen .joy-zoom-minus,
+    .video-shell:-webkit-full-screen .joy-zoom-minus {
+      right: 22px;
+      bottom: 24px;
+      transform: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 11px;
+    }
+    body.rotate-fullscreen { overflow:hidden; }
+    .video-shell.manual-landscape {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 100vh;
+      height: 100vw;
+      max-width: none;
+      min-height: 0;
+      aspect-ratio: auto;
+      border-radius: 0;
+      border: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%) rotate(90deg);
+      transform-origin: center center;
+    }
+    .video-shell.manual-landscape video,
+    .video-shell.manual-landscape .webrtc-frame {
+      border-radius: 0;
+      clip-path: none;
+      object-fit: cover;
+    }
+    .video-shell.manual-landscape .pad-toggle-btn { display:inline-flex; }
+    .video-shell.manual-landscape .fs-overlay.show { opacity:0.5; }
+    .video-shell.manual-landscape .fs-overlay.show { display:block; }
+    .video-shell.manual-landscape .joystick {
+      width: 160px;
+      height: 160px;
+    }
+    .video-shell.manual-landscape .video-toolbar {
+      top: 14px;
+      right: 14px;
+    }
+    .video-shell.manual-landscape .pad-toggle-btn {
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .video-shell:fullscreen .pad-toggle-btn,
+    .video-shell:-webkit-full-screen .pad-toggle-btn,
+    .video-shell.manual-landscape .pad-toggle-btn {
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .video-shell.manual-landscape .joy-zoom-plus {
+      left: 22px;
+      bottom: 24px;
+      transform: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 11px;
+    }
+    .video-shell.manual-landscape .joy-zoom-minus {
+      right: 22px;
+      bottom: 24px;
+      transform: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 11px;
+    }
+    @media (max-width:760px) {
+      .video-shell.manual-landscape .joy-wrap {
+        width: 220px;
+      }
+      .video-shell.manual-landscape .joystick {
+        width: 140px;
+        height: 140px;
+      }
+    }
     /* Landscape mobile: fullscreen video */
     @media (orientation: landscape) and (max-height: 500px) {
       .wrap { max-width: 100% !important; padding: 4px !important; }
@@ -129,11 +232,11 @@
       .ctl-btn { height:34px; font-size:12px; }
       .dpad { grid-template-rows:repeat(3, 34px); gap:5px; }
       .func-grid { gap:6px; }
-      .joy-wrap { width:min(340px, 92vw); margin-top: 10px; }
-      .joystick { width:min(164px, 44vw); height:min(164px, 44vw); }
-      .joy-btn { width:40px; height:40px; font-size:11px; }
-      .joy-center { width:50px; height:50px; font-size:11px; }
-      .joy-zoom-plus, .joy-zoom-minus { width:28px; height:18px; font-size:9px; bottom:20px; }
+      .joy-wrap { width:min(238px, 64vw); margin-top: 10px; }
+      .joystick { width:min(115px, 31vw); height:min(115px, 31vw); }
+      .joy-btn { width:28px; height:28px; font-size:10px; }
+      .joy-center { width:35px; height:35px; font-size:10px; }
+      .joy-zoom-plus, .joy-zoom-minus { width:20px; height:14px; font-size:8px; bottom:14px; }
       .video-shell { aspect-ratio:16/9; min-height:220px; }
       .card.video-card { margin:0; padding:0; background:transparent; border:none; box-shadow:none; }
       .latency-row { display:flex; align-items:center; justify-content:center; gap:16px; padding:8px 0; }
@@ -220,6 +323,20 @@
     }
     .home-row { margin-top: 8px; }
     .home-row .apple-btn { width: 100%; }
+    .preset-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-height: 46px;
+    }
+    .preset-placeholder .hint {
+      font-size: 10px;
+      font-weight: 500;
+      color: rgba(158,180,222,0.52);
+      line-height: 1.2;
+    }
         .vision-pad {
       display: grid;
       grid-template-columns: repeat(3, minmax(0,1fr));
@@ -236,6 +353,9 @@
       color: #eaf1ff;
       font-size: 16px;
       font-weight: 700;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
     .pad-gap { visibility: hidden; }
 
@@ -292,11 +412,13 @@
   </style>
 </head>
 <body>
+  <div id="rotateBackdrop" class="rotate-backdrop"></div>
   <div class="wrap">
     <div class="card video-card">
       <div id="videoShell" class="video-shell">
         <div class="video-toolbar">
-          <button class="apple-btn tiny" onclick="togglePad()" id="padBtn">&#x25CE;</button>
+          <button class="apple-btn tiny rotate-btn" onclick="toggleFullscreen(event)" id="fsBtn" aria-label="旋转全屏" title="旋转全屏">⛶</button>
+          <button class="apple-btn tiny pad-toggle-btn" onclick="togglePad()" id="padBtn" aria-label="隐藏摇杆" title="隐藏摇杆">隐藏摇杆</button>
         </div>
 
         <video id="v" autoplay muted playsinline webkit-playsinline></video>
@@ -311,7 +433,7 @@
                 <button class="joy-btn joy-down" onclick="send('down')">▼</button>
                 <button class="joy-btn joy-left" onclick="send('left')">◀</button>
                 <button class="joy-btn joy-right" onclick="send('right')">▶</button>
-                <button class="joy-btn joy-center" onclick="send('ok')">OK</button>
+                <button class="joy-btn joy-center" id="joyCenterDrag" type="button">拖动</button>
                 <button class="joy-btn joy-zoom-plus" onclick="send('zoom+')">+</button>
                 <button class="joy-btn joy-zoom-minus" onclick="send('zoom-')">-</button>
               </div>
@@ -344,7 +466,10 @@
             <button class="apple-btn" onclick="send('9')">9</button>
           </div>
           <div class="home-row">
-            <button class="apple-btn" onclick="send('home')">Home</button>
+            <button class="apple-btn preset-placeholder" type="button">
+              <span>预置位</span>
+              <span class="hint">（调整画面后点击此按钮然后按一下数字）</span>
+            </button>
           </div>
         </div>
 
@@ -396,8 +521,10 @@
     const statusEl = document.getElementById('status');
     const videoStatusEl = document.getElementById('videoStatus');
     const padBtn = document.getElementById('padBtn');
+    const fsBtn = document.getElementById('fsBtn');
     const videoShell = document.getElementById('videoShell');
     const padOverlay = document.getElementById('padOverlay');
+    const rotateBackdrop = document.getElementById('rotateBackdrop');
     const streamPreset = document.getElementById('streamPreset');
     const digitalDot = document.getElementById('digitalDot');
 
@@ -436,6 +563,7 @@
     let webrtcStartInProgress = false;
     let webrtcStartWatchdog = null;
     let webrtcEnsureTimer = null;
+    let manualFullscreen = false;
 
 
     function setVideoStatus(text) {
@@ -933,15 +1061,20 @@ function updateDigitalStatus(ms) {
       }, 1200);
     }
 
-    const ZOOM_HOLD_KEYS = new Set(['zoom+', 'zoom-']);
-    const ZOOM_HOLD_START_DELAY_MS = 280;
-    const ZOOM_HOLD_REPEAT_MS = 180;
-    const ZOOM_HOLD_SUPPRESS_CLICK_MS = 260;
+    const ZOOM_HOLD_KEYS = new Set(['zoom+', 'zoom-', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'up', 'down', 'left', 'right']);
+    const ZOOM_HOLD_START_DELAY_MS = 120;
+    const ZOOM_HOLD_REPEAT_MS = 100;
+    const ZOOM_HOLD_SUPPRESS_CLICK_MS = 220;
     let zoomHoldKey = '';
     let zoomHoldStartTimer = null;
     let zoomHoldRepeatTimer = null;
     let zoomHoldPointerId = null;
     let zoomHoldSuppressClickUntil = 0;
+    let joystickDragPointerId = null;
+    let joystickDragStartX = 0;
+    let joystickDragStartY = 0;
+    let joystickStartLeft = 0;
+    let joystickStartTop = 0;
 
     function clearZoomHoldTimers() {
       if (zoomHoldStartTimer) {
@@ -1010,7 +1143,7 @@ function updateDigitalStatus(ms) {
     }
 
     function bindZoomHoldButtons() {
-      const zoomBtns = Array.from(document.querySelectorAll('button[onclick*="zoom"]'))
+      const zoomBtns = Array.from(document.querySelectorAll("button[onclick^=\"send('\"]"))
         .filter((btn) => ZOOM_HOLD_KEYS.has(getSendKeyFromButton(btn)));
 
       zoomBtns.forEach((btn) => {
@@ -1018,6 +1151,9 @@ function updateDigitalStatus(ms) {
         btn.addEventListener('pointerdown', (ev) => startZoomHold(ev, key));
         btn.addEventListener('pointerup', stopZoomHold);
         btn.addEventListener('pointercancel', stopZoomHold);
+        btn.addEventListener('contextmenu', (ev) => {
+          ev.preventDefault();
+        });
         btn.addEventListener('click', (ev) => {
           if (Date.now() < zoomHoldSuppressClickUntil) {
             ev.preventDefault();
@@ -1028,6 +1164,82 @@ function updateDigitalStatus(ms) {
 
       window.addEventListener('pointerup', stopZoomHold, { passive: true });
       window.addEventListener('blur', stopZoomHold);
+    }
+
+    function resetJoystickPosition() {
+      const joyWrap = padOverlay.querySelector('.joy-wrap');
+      if (!joyWrap) return;
+      const overlayWidth = padOverlay.clientWidth || 0;
+      const overlayHeight = padOverlay.clientHeight || 0;
+      const wrapWidth = joyWrap.offsetWidth || 0;
+      const wrapHeight = joyWrap.offsetHeight || 0;
+      const left = Math.max(0, (overlayWidth - wrapWidth) / 2);
+      const top = Math.max(0, (overlayHeight - wrapHeight) / 2);
+      joyWrap.style.left = `${left}px`;
+      joyWrap.style.top = `${top}px`;
+      joyWrap.style.bottom = 'auto';
+    }
+
+    function clampJoystickPosition(left, top) {
+      const joyWrap = padOverlay.querySelector('.joy-wrap');
+      if (!joyWrap) return { left: 0, top: 0 };
+      const overlayWidth = padOverlay.clientWidth || 0;
+      const overlayHeight = padOverlay.clientHeight || 0;
+      const wrapWidth = joyWrap.offsetWidth || 0;
+      const wrapHeight = joyWrap.offsetHeight || 0;
+      return {
+        left: Math.min(Math.max(0, left), Math.max(0, overlayWidth - wrapWidth)),
+        top: Math.min(Math.max(0, top), Math.max(0, overlayHeight - wrapHeight)),
+      };
+    }
+
+    function applyJoystickPosition(left, top) {
+      const joyWrap = padOverlay.querySelector('.joy-wrap');
+      if (!joyWrap) return;
+      const pos = clampJoystickPosition(left, top);
+      joyWrap.style.left = `${pos.left}px`;
+      joyWrap.style.top = `${pos.top}px`;
+      joyWrap.style.bottom = 'auto';
+    }
+
+    function startJoystickDrag(ev) {
+      if (!padVisible) return;
+      const target = ev.currentTarget;
+      const joyWrap = padOverlay.querySelector('.joy-wrap');
+      if (!joyWrap) return;
+      const left = joyWrap.offsetLeft || 0;
+      const top = joyWrap.offsetTop || 0;
+      joystickDragPointerId = ev.pointerId;
+      joystickDragStartX = ev.clientX;
+      joystickDragStartY = ev.clientY;
+      joystickStartLeft = left;
+      joystickStartTop = top;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (target && typeof target.setPointerCapture === 'function') {
+        try { target.setPointerCapture(ev.pointerId); } catch (_) {}
+      }
+    }
+
+    function moveJoystickDrag(ev) {
+      if (joystickDragPointerId !== ev.pointerId) return;
+      const dx = ev.clientX - joystickDragStartX;
+      const dy = ev.clientY - joystickDragStartY;
+      let left = joystickStartLeft + dx;
+      let top = joystickStartTop + dy;
+
+      // 手动横屏模式下，容器整体旋转了 90deg，需要把屏幕手势换算回容器坐标
+      if (manualFullscreen) {
+        left = joystickStartLeft + dy;
+        top = joystickStartTop - dx;
+      }
+
+      applyJoystickPosition(left, top);
+    }
+
+    function stopJoystickDrag(ev) {
+      if (ev && joystickDragPointerId !== null && ev.pointerId !== joystickDragPointerId) return;
+      joystickDragPointerId = null;
     }
 
     const HOLD_KEYS = new Set(['down', 'right']);
@@ -1186,23 +1398,117 @@ function updateDigitalStatus(ms) {
     }
 
     function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
-    async function toggleFullscreen() {
-      if (!isFullscreen()) {
-        try {
-          if (videoShell.requestFullscreen) await videoShell.requestFullscreen();
-          else if (videoShell.webkitRequestFullscreen) videoShell.webkitRequestFullscreen();
-        } catch (_) {}
-      } else {
-        if (document.exitFullscreen) await document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+
+    async function lockLandscape() {
+      if (!screen.orientation || !screen.orientation.lock) return false;
+      try {
+        await screen.orientation.lock('landscape');
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async function unlockLandscape() {
+      if (!screen.orientation || !screen.orientation.unlock) return;
+      try { screen.orientation.unlock(); } catch (_) {}
+    }
+
+    function enterManualFullscreen() {
+      manualFullscreen = true;
+      document.body.classList.add('rotate-fullscreen');
+      videoShell.classList.add('manual-landscape');
+      if (rotateBackdrop) rotateBackdrop.classList.add('show');
+      padVisible = true;
+      padOverlay.classList.add('show');
+      if (padBtn) {
+        padBtn.textContent = '隐藏摇杆';
+        padBtn.setAttribute('aria-label', '隐藏摇杆');
+        padBtn.title = '隐藏摇杆';
+      }
+      updateFullscreenUi();
+      requestAnimationFrame(resetJoystickPosition);
+    }
+
+    function exitManualFullscreen() {
+      manualFullscreen = false;
+      document.body.classList.remove('rotate-fullscreen');
+      videoShell.classList.remove('manual-landscape');
+      if (rotateBackdrop) rotateBackdrop.classList.remove('show');
+      padVisible = false;
+      padOverlay.classList.remove('show');
+      if (padBtn) {
+        padBtn.textContent = '显示摇杆';
+        padBtn.setAttribute('aria-label', '显示摇杆');
+        padBtn.title = '显示摇杆';
+      }
+      updateFullscreenUi();
+    }
+
+    async function exitFullscreenMode() {
+      exitManualFullscreen();
+      await unlockLandscape();
+      if (document.exitFullscreen && document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else if (document.webkitExitFullscreen && document.webkitFullscreenElement) {
+        document.webkitExitFullscreen();
+      }
+    }
+
+    function updateFullscreenUi() {
+      if (!fsBtn) return;
+      const active = manualFullscreen || isFullscreen();
+      fsBtn.textContent = active ? '✕' : '⛶';
+      fsBtn.setAttribute('aria-label', active ? '退出全屏' : '旋转全屏');
+      fsBtn.title = active ? '退出全屏' : '旋转全屏';
+      if (padBtn) {
+        padBtn.style.display = active ? 'inline-flex' : 'none';
+      }
+    }
+
+    async function toggleFullscreen(ev) {
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      if (manualFullscreen || isFullscreen()) {
+        await exitFullscreenMode();
+        return;
+      }
+
+      const isMobile = window.matchMedia('(max-width: 900px)').matches;
+      if (IS_WECHAT || IS_IOS) {
+        enterManualFullscreen();
+        await lockLandscape();
+        return;
+      }
+
+      try {
+        if (videoShell.requestFullscreen) await videoShell.requestFullscreen();
+        else if (videoShell.webkitRequestFullscreen) videoShell.webkitRequestFullscreen();
+        const locked = await lockLandscape();
+        if (!locked && isMobile) enterManualFullscreen();
+      } catch (_) {
+        enterManualFullscreen();
+        await lockLandscape();
       }
     }
 
     function togglePad() {
+      if (!(manualFullscreen || isFullscreen())) return;
       ignoreClickUntil = Date.now() + 300;
       padVisible = !padVisible;
-      if (padVisible) padOverlay.classList.add('show'); else padOverlay.classList.remove('show');
-      padBtn.textContent = padVisible ? t('hidePad') : t('pad');
+      if (padVisible) {
+        padOverlay.classList.add('show');
+        requestAnimationFrame(resetJoystickPosition);
+      } else {
+        padOverlay.classList.remove('show');
+      }
+      if (padBtn) {
+        padBtn.textContent = padVisible ? '隐藏摇杆' : '显示摇杆';
+        padBtn.setAttribute('aria-label', padVisible ? '隐藏摇杆' : '显示摇杆');
+        padBtn.title = padVisible ? '隐藏摇杆' : '显示摇杆';
+      }
     }
 
     function handleVideoShellClick(ev) {
@@ -1214,6 +1520,51 @@ function updateDigitalStatus(ms) {
     }
 
     videoShell.addEventListener('click', handleVideoShellClick);
+    if (rotateBackdrop) rotateBackdrop.addEventListener('click', () => { exitFullscreenMode(); });
+    document.addEventListener('fullscreenchange', () => {
+      if (isFullscreen()) {
+        padVisible = true;
+        padOverlay.classList.add('show');
+        requestAnimationFrame(resetJoystickPosition);
+        if (padBtn) {
+          padBtn.textContent = '隐藏摇杆';
+          padBtn.setAttribute('aria-label', '隐藏摇杆');
+          padBtn.title = '隐藏摇杆';
+        }
+      } else {
+        unlockLandscape();
+        padVisible = false;
+        padOverlay.classList.remove('show');
+        if (padBtn) {
+          padBtn.textContent = '显示摇杆';
+          padBtn.setAttribute('aria-label', '显示摇杆');
+          padBtn.title = '显示摇杆';
+        }
+      }
+      updateFullscreenUi();
+    });
+    document.addEventListener('webkitfullscreenchange', () => {
+      if (isFullscreen()) {
+        padVisible = true;
+        padOverlay.classList.add('show');
+        requestAnimationFrame(resetJoystickPosition);
+        if (padBtn) {
+          padBtn.textContent = '隐藏摇杆';
+          padBtn.setAttribute('aria-label', '隐藏摇杆');
+          padBtn.title = '隐藏摇杆';
+        }
+      } else {
+        unlockLandscape();
+        padVisible = false;
+        padOverlay.classList.remove('show');
+        if (padBtn) {
+          padBtn.textContent = '显示摇杆';
+          padBtn.setAttribute('aria-label', '显示摇杆');
+          padBtn.title = '显示摇杆';
+        }
+      }
+      updateFullscreenUi();
+    });
     const video = document.getElementById('v');
     video.muted = true;
     video.autoplay = true;
@@ -1249,6 +1600,22 @@ function updateDigitalStatus(ms) {
     setupIosPlaybackNudge();
     initUiState();
     bindZoomHoldButtons();
+    {
+      const joyCenterDrag = document.getElementById('joyCenterDrag');
+      if (joyCenterDrag) {
+        joyCenterDrag.addEventListener('pointerdown', startJoystickDrag);
+        joyCenterDrag.addEventListener('pointermove', moveJoystickDrag);
+        joyCenterDrag.addEventListener('pointerup', stopJoystickDrag);
+        joyCenterDrag.addEventListener('pointercancel', stopJoystickDrag);
+        joyCenterDrag.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        });
+      }
+    }
+    window.addEventListener('resize', () => {
+      if (padVisible) requestAnimationFrame(resetJoystickPosition);
+    });
     setVideoStatus('');
     autoStartVideo();
     restoreActiveBtns();
@@ -1257,6 +1624,7 @@ function updateDigitalStatus(ms) {
     startPlaybackGuard();
     startLatencyProbe();
     setInterval(syncLatencyDigitalFromBadge, 500);
+    updateFullscreenUi();
   </script>
 
 
