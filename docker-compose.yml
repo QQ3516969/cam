@@ -3,7 +3,7 @@ services:
   cam-web:
     image: nginx:alpine
     container_name: cam-web
-    restart: unless-stopped
+    restart: "always"
     depends_on:
       - cam-api
     ports:
@@ -25,7 +25,7 @@ services:
   cam-proxy:
     image: nginx:alpine
     container_name: cam-proxy
-    restart: unless-stopped
+    restart: "always"
     ports:
       - "443:443"
     volumes:
@@ -37,7 +37,7 @@ services:
   cam-stream:
     image: bluenviron/mediamtx:latest
     container_name: cam-stream
-    restart: unless-stopped
+    restart: "always"
     ports:
       - "8554:8554"
       - "8888:8888"
@@ -50,13 +50,12 @@ services:
   cam-publisher:
     image: lscr.io/linuxserver/ffmpeg:latest
     container_name: cam-publisher
-    restart: unless-stopped
+    restart: "always"
     depends_on:
       - cam-stream
     devices:
       - /dev/video0:/dev/video0
-    command: >
-      -hide_banner -loglevel warning
-      -f v4l2 -input_format h264 -framerate 30 -video_size 1920x1080 -i /dev/video0
-      -an -c:v copy
-      -f rtsp -rtsp_transport tcp rtsp://cam-stream:8554/cam
+    volumes:
+      - ./stream/restart.sh:/restart.sh:ro
+    entrypoint: []
+    command: sh /restart.sh
