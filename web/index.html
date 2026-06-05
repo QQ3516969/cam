@@ -466,7 +466,7 @@
             <button class="apple-btn" onclick="send('9')">9</button>
           </div>
           <div class="home-row">
-            <button class="apple-btn preset-placeholder" type="button">
+            <button class="apple-btn preset-placeholder" type="button" onclick="send('preset')">
               <span>预置位</span>
               <span class="hint">（调整画面后点击此按钮然后按一下数字）</span>
             </button>
@@ -1061,7 +1061,7 @@ function updateDigitalStatus(ms) {
       }, 1200);
     }
 
-    const ZOOM_HOLD_KEYS = new Set(['zoom+', 'zoom-', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'up', 'down', 'left', 'right']);
+    const ZOOM_HOLD_KEYS = new Set(['zoom+', 'zoom-', 'up', 'down', 'left', 'right']);
     const ZOOM_HOLD_START_DELAY_MS = 120;
     const ZOOM_HOLD_REPEAT_MS = 100;
     const ZOOM_HOLD_SUPPRESS_CLICK_MS = 220;
@@ -1246,6 +1246,48 @@ function updateDigitalStatus(ms) {
     const PRESET_BURST_KEYS = new Set(['preset1', 'preset2', 'preset3', 'preset4']);
     const PRESET_BURST_COUNT = 5;
     const PRESET_BURST_INTERVAL_MS = 120;
+    const PRESET_ARM_WINDOW_MS = 10000;
+    const RELIABLE_SEND_COUNT = 4;
+    const RELIABLE_SEND_INTERVAL_MS = 150;
+    let presetArmActive = false;
+    let presetArmDeadline = 0;
+    let presetArmTimer = null;
+
+    function isPresetSlotKey(key) {
+      return /^[1-9]$/.test(String(key || ''));
+    }
+
+    function clearPresetArmTimer() {
+      if (presetArmTimer) {
+        clearInterval(presetArmTimer);
+        presetArmTimer = null;
+      }
+    }
+
+    function updatePresetArmStatus() {
+      if (!presetArmActive) return;
+      const remainMs = Math.max(0, presetArmDeadline - Date.now());
+      const remainSec = Math.ceil(remainMs / 1000);
+      statusEl.textContent = `\u9884\u7f6e\u4f4d\u8bbe\u7f6e\u4e2d\uff1a\u8bf7\u5728 ${remainSec} \u79d2\u5185\u70b9\u51fb 1-9 \u4fdd\u5b58\u5f53\u524d\u753b\u9762`;
+      if (remainMs <= 0) {
+        disarmPresetCapture('\u9884\u7f6e\u4f4d\u8bbe\u7f6e\u5df2\u8d85\u65f6');
+      }
+    }
+
+    function armPresetCapture() {
+      presetArmActive = true;
+      presetArmDeadline = Date.now() + PRESET_ARM_WINDOW_MS;
+      clearPresetArmTimer();
+      updatePresetArmStatus();
+      presetArmTimer = setInterval(updatePresetArmStatus, 250);
+    }
+
+    function disarmPresetCapture(statusText = '') {
+      presetArmActive = false;
+      presetArmDeadline = 0;
+      clearPresetArmTimer();
+      if (statusText) statusEl.textContent = statusText;
+    }
 
     function setActivePresetButton(key) {
       const presetBtns = document.querySelectorAll('.preset-btn');
@@ -1336,7 +1378,7 @@ function updateDigitalStatus(ms) {
     async function sendPresetBurst(key) {
       let last = null;
       for (let i = 0; i < PRESET_BURST_COUNT; i += 1) {
-        last = await sendOnce(finalKey);
+        last = await sendOnce(key);
         if (!last?.ok) return last;
         if (i < PRESET_BURST_COUNT - 1) {
           await new Promise(resolve => setTimeout(resolve, PRESET_BURST_INTERVAL_MS));
@@ -1346,20 +1388,29 @@ function updateDigitalStatus(ms) {
       return last || { ok: true };
     }
 
+    async function sendReliable(key, count = RELIABLE_SEND_COUNT, intervalMs = RELIABLE_SEND_INTERVAL_MS) {
+      let last = null;
+      for (let i = 0; i < count; i += 1) {
+        last = await sendOnce(key);
+        if (!last?.ok) return last;
+        if (i < count - 1) {
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+      }
+      appendDebug(`[${key}] RELIABLE done, sent=${count}`);
+      return last || { ok: true, key };
+    }
+
     function activateBtn(key) {
-      // Skip direction buttons - they don't participate in active state
-      if (['up','down','left','right'].indexOf(key) !== -1) return;
-      // Remove active from all buttons first (mutual exclusion)
+      if (!isPresetSlotKey(key)) return;
       document.querySelectorAll('.btn-active').forEach(function(b) {
         b.classList.remove('btn-active');
       });
-      // Add active to clicked button
       document.querySelectorAll('button').forEach(function(b) {
         if (b.getAttribute('onclick') === "send('" + key + "')") {
           b.classList.add('btn-active');
         }
       });
-      // Save single key to localStorage
       localStorage.setItem('cam-active-btn', key);
     }
     function restoreActiveBtns() {
@@ -1378,19 +1429,35 @@ function updateDigitalStatus(ms) {
       }
     }
     async function send(key) {
-      activateBtn(key);
       if (PRESET_BURST_KEYS.has(key)) setActivePresetButton(key);
       statusEl.textContent = t('sending') + key + '...';
       try {
-        const finalKey = key;
         let j = null;
-        for (let t = 0; t < 3; t++) {
-          j = await sendOnce(finalKey);
-          if (!j.ok) break;
-          if (t < 2) await new Promise(r => setTimeout(r, 150));
+        if (key === 'preset') {
+          j = await sendReliable('preset');
+          if (j?.ok) {
+            armPresetCapture();
+            activateBtn(key);
+            return;
+          }
+        } else if (presetArmActive && isPresetSlotKey(key)) {
+          j = await sendReliable(key);
+          if (j?.ok) {
+            activateBtn(key);
+            disarmPresetCapture(`\u5df2\u5c06\u5f53\u524d\u753b\u9762\u4fdd\u5b58\u5230\u9884\u7f6e\u4f4d ${key}`);
+            return;
+          }
+          disarmPresetCapture();
+        } else {
+          j = await sendReliable(key);
+          if (j?.ok) {
+            statusEl.textContent = t('success') + key;
+            activateBtn(key);
+            return;
+          }
         }
-        if (j && j.ok) { statusEl.textContent = t('success') + finalKey; activateBtn(key); }
-        else if (j && j.error === 'missing config') statusEl.textContent = t('missCfg');
+
+        if (j && j.error === 'missing config') statusEl.textContent = t('missCfg');
         else if (j) statusEl.textContent = t('failed') + JSON.stringify(j);
       } catch (e) {
         statusEl.textContent = t('error') + e.message;
