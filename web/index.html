@@ -180,6 +180,28 @@
       top: 14px;
       right: 14px;
     }
+    .video-shell.fullscreen-active .latency-row {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%);
+      z-index: 41;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 8px 12px;
+      margin: 0;
+      border-radius: 12px;
+      background: rgba(7, 11, 19, 0.46);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+    }
+    .video-shell.fullscreen-active .digital-time,
+    .video-shell.fullscreen-active .digital-latency {
+      letter-spacing: 1px;
+    }
     .video-shell.manual-landscape .pad-toggle-btn {
       align-items: center;
       justify-content: center;
@@ -527,6 +549,7 @@
     const rotateBackdrop = document.getElementById('rotateBackdrop');
     const streamPreset = document.getElementById('streamPreset');
     const digitalDot = document.getElementById('digitalDot');
+    const latencyRow = document.querySelector('.latency-row');
 
 
     const liveText = document.getElementById('liveText');
@@ -564,6 +587,8 @@
     let webrtcStartWatchdog = null;
     let webrtcEnsureTimer = null;
     let manualFullscreen = false;
+    const latencyRowOriginalParent = latencyRow ? latencyRow.parentNode : null;
+    const latencyRowOriginalNextSibling = latencyRow ? latencyRow.nextSibling : null;
 
 
     function setVideoStatus(text) {
@@ -1166,15 +1191,38 @@ function updateDigitalStatus(ms) {
       window.addEventListener('blur', stopZoomHold);
     }
 
-    function resetJoystickPosition() {
+    function getDefaultJoystickPosition() {
       const joyWrap = padOverlay.querySelector('.joy-wrap');
-      if (!joyWrap) return;
+      if (!joyWrap) return { left: 0, top: 0 };
       const overlayWidth = padOverlay.clientWidth || 0;
       const overlayHeight = padOverlay.clientHeight || 0;
       const wrapWidth = joyWrap.offsetWidth || 0;
       const wrapHeight = joyWrap.offsetHeight || 0;
-      const left = Math.max(0, (overlayWidth - wrapWidth) / 2);
-      const top = Math.max(0, (overlayHeight - wrapHeight) / 2);
+      const margin = 16;
+      if (manualFullscreen) {
+        return clampJoystickPosition(
+          overlayWidth - wrapWidth - margin,
+          margin
+        );
+      }
+      if (isFullscreen()) {
+        return clampJoystickPosition(
+          overlayWidth - wrapWidth - margin,
+          overlayHeight - wrapHeight - margin
+        );
+      }
+      return clampJoystickPosition(
+        Math.max(0, (overlayWidth - wrapWidth) / 2),
+        Math.max(0, (overlayHeight - wrapHeight) / 2)
+      );
+    }
+
+    function resetJoystickPosition() {
+      const joyWrap = padOverlay.querySelector('.joy-wrap');
+      if (!joyWrap) return;
+      const pos = getDefaultJoystickPosition();
+      const left = pos.left || 0;
+      const top = pos.top || 0;
       joyWrap.style.left = `${left}px`;
       joyWrap.style.top = `${top}px`;
       joyWrap.style.bottom = 'auto';
@@ -1420,6 +1468,10 @@ function updateDigitalStatus(ms) {
       });
       // Restore single active button
       var key = localStorage.getItem('cam-active-btn');
+      if (!isPresetSlotKey(key)) {
+        localStorage.removeItem('cam-active-btn');
+        return;
+      }
       if (key) {
         document.querySelectorAll('button').forEach(function(b) {
           if (b.getAttribute('onclick') === "send('" + key + "')") {
@@ -1465,6 +1517,24 @@ function updateDigitalStatus(ms) {
     }
 
     function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+
+    function syncLatencyRowPlacement() {
+      if (!latencyRow || !videoShell || !latencyRowOriginalParent) return;
+      const active = manualFullscreen || isFullscreen();
+      videoShell.classList.toggle('fullscreen-active', active);
+      if (active) {
+        if (latencyRow.parentNode !== videoShell) {
+          videoShell.appendChild(latencyRow);
+        }
+        return;
+      }
+      if (latencyRow.parentNode === latencyRowOriginalParent) return;
+      if (latencyRowOriginalNextSibling && latencyRowOriginalNextSibling.parentNode === latencyRowOriginalParent) {
+        latencyRowOriginalParent.insertBefore(latencyRow, latencyRowOriginalNextSibling);
+      } else {
+        latencyRowOriginalParent.appendChild(latencyRow);
+      }
+    }
 
     async function lockLandscape() {
       if (!screen.orientation || !screen.orientation.lock) return false;
@@ -1525,6 +1595,7 @@ function updateDigitalStatus(ms) {
     function updateFullscreenUi() {
       if (!fsBtn) return;
       const active = manualFullscreen || isFullscreen();
+      syncLatencyRowPlacement();
       fsBtn.textContent = active ? '✕' : '⛶';
       fsBtn.setAttribute('aria-label', active ? '退出全屏' : '旋转全屏');
       fsBtn.title = active ? '退出全屏' : '旋转全屏';
