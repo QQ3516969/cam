@@ -3,6 +3,7 @@ import hmac
 import json
 import time
 import hashlib
+import threading
 from urllib.parse import urlencode
 
 import requests
@@ -23,6 +24,7 @@ API_BEARER = os.getenv("API_BEARER", "")
 COMMAND_MAP_JSON = os.getenv("COMMAND_MAP_JSON", "{}")
 RAW_CODE_MAP_JSON = os.getenv("RAW_CODE_MAP_JSON", "{}")
 RAW_CATEGORY_ID = int(os.getenv("RAW_CATEGORY_ID", "13") or "13")
+UI_STATE_FILE = os.getenv("UI_STATE_FILE", "/data/ui_state.json")
 
 try:
     COMMAND_MAP = json.loads(COMMAND_MAP_JSON)
@@ -35,6 +37,7 @@ except Exception:
     RAW_CODE_MAP = {}
 
 _token_cache = {"token": "", "exp": 0}
+_ui_state_lock = threading.Lock()
 _http = requests.Session()
 _adapter = HTTPAdapter(pool_connections=16, pool_maxsize=32, max_retries=0)
 _http.mount("https://", _adapter)
@@ -126,6 +129,91 @@ def _check_config():
     return miss
 
 
+def _default_ui_state():
+    return {
+        "active_preset": "",
+        "preset_labels": {},
+        "updated_at": int(time.time()),
+    }
+
+
+def _sanitize_ui_state(data):
+    state = _default_ui_state()
+    if isinstance(data, dict):
+        active_preset = str(data.get("active_preset", "")).strip()
+        state["active_preset"] = active_preset if active_preset in {str(i) for i in range(1, 10)} else ""
+
+        labels = data.get("preset_labels", {})
+        clean_labels = {}
+        if isinstance(labels, dict):
+            for i in range(1, 10):
+                key = str(i)
+                value = str(labels.get(key, "")).strip()
+                if value:
+                    clean_labels[key] = value[:80]
+        state["preset_labels"] = clean_labels
+
+        try:
+            state["updated_at"] = int(data.get("updated_at", state["updated_at"]))
+        except Exception:
+            pass
+    return state
+
+
+def _ensure_ui_state_dir():
+    os.makedirs(os.path.dirname(UI_STATE_FILE), exist_ok=True)
+
+
+def _read_ui_state():
+    with _ui_state_lock:
+        try:
+            with open(UI_STATE_FILE, "r", encoding="utf-8") as f:
+                return _sanitize_ui_state(json.load(f))
+        except FileNotFoundError:
+            state = _default_ui_state()
+            _write_ui_state(state)
+            return state
+        except Exception:
+            return _default_ui_state()
+
+
+def _write_ui_state(state):
+    clean_state = _sanitize_ui_state(state)
+    clean_state["updated_at"] = int(time.time())
+    _ensure_ui_state_dir()
+    tmp_path = f"{UI_STATE_FILE}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(clean_state, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp_path, UI_STATE_FILE)
+    return clean_state
+
+
+def _patch_ui_state(patch):
+    with _ui_state_lock:
+        try:
+            with open(UI_STATE_FILE, "r", encoding="utf-8") as f:
+                current = _sanitize_ui_state(json.load(f))
+        except Exception:
+            current = _default_ui_state()
+
+        if "active_preset" in patch:
+            active_preset = str(patch.get("active_preset", "")).strip()
+            current["active_preset"] = active_preset if active_preset in {str(i) for i in range(1, 10)} else ""
+
+        if "preset_labels" in patch:
+            labels = patch.get("preset_labels", {})
+            if isinstance(labels, dict):
+                clean_labels = {}
+                for i in range(1, 10):
+                    key = str(i)
+                    value = str(labels.get(key, "")).strip()
+                    if value:
+                        clean_labels[key] = value[:80]
+                current["preset_labels"] = clean_labels
+
+        return _write_ui_state(current)
+
+
 def _auth_guard():
     if API_BEARER:
         auth = request.headers.get("Authorization", "")
@@ -174,6 +262,28 @@ def health():
         "mapped_keys": sorted(COMMAND_MAP.keys()),
         "raw_mapped_keys": sorted(RAW_CODE_MAP.keys()),
     })
+
+
+@app.get("/api/ui-state")
+def get_ui_state():
+    auth_fail = _auth_guard()
+    if auth_fail:
+        return auth_fail
+    return jsonify({"ok": True, "state": _read_ui_state()})
+
+
+@app.post("/api/ui-state")
+def update_ui_state():
+    auth_fail = _auth_guard()
+    if auth_fail:
+        return auth_fail
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        state = _patch_ui_state(payload)
+        return jsonify({"ok": True, "state": state})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.post("/api/control")

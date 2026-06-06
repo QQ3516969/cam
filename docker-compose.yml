@@ -5,6 +5,11 @@ services:
     restart: unless-stopped
     env_file:
       - ./.env
+    environment:
+      UI_STATE_FILE: /data/ui_state.json
+    volumes:
+      - ./backend/app.py:/app/app.py:ro
+      - ./data:/data
 
   cam-web:
     image: nginx:alpine
@@ -12,7 +17,10 @@ services:
     restart: unless-stopped
     depends_on:
       - cam-api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
+      - "888:80"
       - "80:80"
       - "280:80"
     volumes:

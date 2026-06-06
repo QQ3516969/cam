@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>&#x6444;&#x50CF;&#x5934;&#x63A7;&#x5236;&#x9762;&#x677F; v2</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <title>3D 打印监控面板</title>
   <style>
     :root {
       --bg: #0b0d12;
@@ -176,6 +176,9 @@
       width: 160px;
       height: 160px;
     }
+    .video-shell.manual-landscape .joy-wrap {
+      width: max-content;
+    }
     .video-shell.manual-landscape .video-toolbar {
       top: 14px;
       right: 14px;
@@ -234,7 +237,7 @@
     }
     @media (max-width:760px) {
       .video-shell.manual-landscape .joy-wrap {
-        width: 220px;
+        width: max-content;
       }
       .video-shell.manual-landscape .joystick {
         width: 140px;
@@ -335,13 +338,112 @@
     }
     .preset-grid .apple-btn,
     .home-row .apple-btn {
-      height: 30px;
+      min-height: 30px;
       border-radius: 13px;
       background: linear-gradient(180deg, #26334d, #1e2a40);
       border: 1px solid #3d5581;
       color: #dfeaff;
       font-size: 14px;
       font-weight: 650;
+    }
+    .preset-slot-btn {
+      min-height: 48px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+    .preset-slot-btn .preset-num {
+      font-size: 15px;
+      line-height: 1;
+      font-weight: 700;
+    }
+    .preset-slot-btn .preset-note {
+      min-height: 12px;
+      font-size: 10px;
+      line-height: 1.15;
+      color: rgba(199,211,234,0.72);
+      text-align: center;
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .preset-slot-btn.is-active .preset-note,
+    .btn-active .preset-note {
+      color: rgba(58,51,32,0.82);
+    }
+    .preset-edit-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 12000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(5, 8, 14, 0.58);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .preset-edit-modal.show { display: flex; }
+    .preset-edit-dialog {
+      width: min(92vw, 360px);
+      border-radius: 16px;
+      border: 1px solid rgba(92, 121, 178, 0.5);
+      background: linear-gradient(180deg, #192338, #111a2c);
+      box-shadow: 0 18px 48px rgba(0,0,0,0.38);
+      padding: 16px;
+    }
+    .preset-edit-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #edf3ff;
+      margin-bottom: 6px;
+    }
+    .preset-edit-sub {
+      font-size: 12px;
+      color: rgba(183, 201, 232, 0.72);
+      margin-bottom: 12px;
+      line-height: 1.35;
+    }
+    .preset-edit-input {
+      width: 100%;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid rgba(83, 110, 166, 0.72);
+      background: rgba(9, 14, 24, 0.86);
+      color: #eef4ff;
+      padding: 0 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    .preset-edit-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .preset-edit-cancel,
+    .preset-edit-confirm {
+      min-width: 112px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid rgba(86, 110, 156, 0.7);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .preset-edit-cancel {
+      background: linear-gradient(180deg, #25324b, #1a2438);
+      color: #d6e2f8;
+    }
+    .preset-edit-confirm {
+      margin-left: auto;
+      background: linear-gradient(180deg, #29bf63, #1d9b4d);
+      border-color: rgba(125, 255, 182, 0.72);
+      color: #ffffff;
     }
     .home-row { margin-top: 8px; }
     .home-row .apple-btn { width: 100%; }
@@ -435,6 +537,17 @@
 </head>
 <body>
   <div id="rotateBackdrop" class="rotate-backdrop"></div>
+  <div id="presetEditModal" class="preset-edit-modal">
+    <div class="preset-edit-dialog">
+      <div id="presetEditTitle" class="preset-edit-title">编辑预置位说明</div>
+      <div class="preset-edit-sub">留空后确定可清除这一路说明</div>
+      <input id="presetEditInput" class="preset-edit-input" type="text" maxlength="80" autocomplete="off" />
+      <div class="preset-edit-actions">
+        <button id="presetEditCancel" class="apple-btn preset-edit-cancel" type="button">取消</button>
+        <button id="presetEditConfirm" class="apple-btn preset-edit-confirm" type="button">确定 ✅</button>
+      </div>
+    </div>
+  </div>
   <div class="wrap">
     <div class="card video-card">
       <div id="videoShell" class="video-shell">
@@ -477,15 +590,15 @@
           <div class="panel-title"></div>
           <div class="panel-sub"></div>
           <div class="preset-grid">
-            <button class="apple-btn" onclick="send('1')">1</button>
-            <button class="apple-btn" onclick="send('2')">2</button>
-            <button class="apple-btn" onclick="send('3')">3</button>
-            <button class="apple-btn" onclick="send('4')">4</button>
-            <button class="apple-btn" onclick="send('5')">5</button>
-            <button class="apple-btn" onclick="send('6')">6</button>
-            <button class="apple-btn" onclick="send('7')">7</button>
-            <button class="apple-btn" onclick="send('8')">8</button>
-            <button class="apple-btn" onclick="send('9')">9</button>
+            <button class="apple-btn preset-btn preset-slot-btn" data-preset-key="1" onclick="handlePresetSlotClick(event, '1')"><span class="preset-num">1</span><span class="preset-note"></span></button>
+            <button class="apple-btn preset-btn preset-slot-btn" data-preset-key="2" onclick="handlePresetSlotClick(event, '2')"><span class="preset-num">2</span><span class="preset-note"></span></button>
+            <button class="apple-btn preset-btn preset-slot-btn" data-preset-key="3" onclick="handlePresetSlotClick(event, '3')"><span class="preset-num">3</span><span class="preset-note"></span></button>
+            <button class="apple-btn preset-btn preset-slot-btn" data-preset-key="4" onclick="handlePresetSlotClick(event, '4')"><span class="preset-num">4</span><span class="preset-note"></span></button>
+            <button class="apple-btn preset-btn preset-slot-btn" data-preset-key="5" onclick="handlePresetSlotClick(event, '5')"><span class="preset-num">5</span><span class="preset-note"></span></button>
+            <button class="apple-btn preset-btn preset-slot-btn" data-preset-key="6" onclick="handlePresetSlotClick(event, '6')"><span class="preset-num">6</span><span class="preset-note"></span></button>
+            <button class="apple-btn preset-btn preset-slot-btn" data-preset-key="7" onclick="handlePresetSlotClick(event, '7')"><span class="preset-num">7</span><span class="preset-note"></span></button>
+            <button class="apple-btn preset-btn preset-slot-btn" data-preset-key="8" onclick="handlePresetSlotClick(event, '8')"><span class="preset-num">8</span><span class="preset-note"></span></button>
+            <button class="apple-btn preset-btn preset-slot-btn" data-preset-key="9" onclick="handlePresetSlotClick(event, '9')"><span class="preset-num">9</span><span class="preset-note"></span></button>
           </div>
           <div class="home-row">
             <button class="apple-btn preset-placeholder" type="button" onclick="send('preset')">
@@ -550,6 +663,11 @@
     const streamPreset = document.getElementById('streamPreset');
     const digitalDot = document.getElementById('digitalDot');
     const latencyRow = document.querySelector('.latency-row');
+    const presetEditModal = document.getElementById('presetEditModal');
+    const presetEditTitle = document.getElementById('presetEditTitle');
+    const presetEditInput = document.getElementById('presetEditInput');
+    const presetEditCancel = document.getElementById('presetEditCancel');
+    const presetEditConfirm = document.getElementById('presetEditConfirm');
 
 
     const liveText = document.getElementById('liveText');
@@ -589,6 +707,17 @@
     let manualFullscreen = false;
     const latencyRowOriginalParent = latencyRow ? latencyRow.parentNode : null;
     const latencyRowOriginalNextSibling = latencyRow ? latencyRow.nextSibling : null;
+    const UI_STATE_POLL_MS = 3000;
+    const PRESET_LABEL_HOLD_MS = 1000;
+    const PRESET_LABEL_SUPPRESS_CLICK_MS = 500;
+    let presetLabelHoldKey = '';
+    let presetLabelHoldTimer = null;
+    let presetLabelSuppressClickUntil = 0;
+    let presetLabelPointerId = null;
+    let uiStateSyncTimer = null;
+    let uiStateFetchInFlight = false;
+    let uiState = { active_preset: '', preset_labels: {} };
+    let presetEditResolver = null;
 
 
     function setVideoStatus(text) {
@@ -1202,7 +1331,7 @@ function updateDigitalStatus(ms) {
       if (manualFullscreen) {
         return clampJoystickPosition(
           overlayWidth - wrapWidth - margin,
-          margin
+          overlayHeight - wrapHeight - margin
         );
       }
       if (isFullscreen()) {
@@ -1305,6 +1434,193 @@ function updateDigitalStatus(ms) {
       return /^[1-9]$/.test(String(key || ''));
     }
 
+    function applyPresetActiveVisual(key) {
+      document.querySelectorAll('.btn-active').forEach(function(b) {
+        b.classList.remove('btn-active');
+      });
+      if (!isPresetSlotKey(key)) return;
+      document.querySelectorAll('.preset-slot-btn').forEach(function(b) {
+        if (b.getAttribute('data-preset-key') === String(key)) {
+          b.classList.add('btn-active');
+        }
+      });
+    }
+
+    function normalizeUiState(state) {
+      const next = { active_preset: '', preset_labels: {} };
+      if (!state || typeof state !== 'object') return next;
+      if (isPresetSlotKey(state.active_preset)) {
+        next.active_preset = String(state.active_preset);
+      }
+      const labels = state.preset_labels;
+      if (labels && typeof labels === 'object') {
+        for (let i = 1; i <= 9; i += 1) {
+          const key = String(i);
+          const value = String(labels[key] || '').trim();
+          if (value) next.preset_labels[key] = value;
+        }
+      }
+      return next;
+    }
+
+    function applyUiState(state) {
+      uiState = normalizeUiState(state);
+      applyPresetActiveVisual(uiState.active_preset);
+      renderPresetLabels();
+    }
+
+    async function fetchSharedUiState(silent = false) {
+      if (uiStateFetchInFlight) return uiState;
+      uiStateFetchInFlight = true;
+      try {
+        const r = await fetch('/api/ui-state', { cache: 'no-store' });
+        const j = await r.json();
+        if (j && j.ok && j.state) {
+          applyUiState(j.state);
+          return uiState;
+        }
+        if (!silent) appendDebug(`[ui-state] fetch failed: ${JSON.stringify(j)}`);
+      } catch (e) {
+        if (!silent) appendDebug(`[ui-state] fetch error: ${e?.message || e}`);
+      } finally {
+        uiStateFetchInFlight = false;
+      }
+      return uiState;
+    }
+
+    async function saveSharedUiStatePatch(patch, { silent = false } = {}) {
+      const r = await fetch('/api/ui-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch || {}),
+      });
+      const j = await r.json();
+      if (!j?.ok || !j.state) {
+        throw new Error(j?.error || '保存共享状态失败');
+      }
+      applyUiState(j.state);
+      if (!silent) appendDebug(`[ui-state] saved ${JSON.stringify(patch)}`);
+      return uiState;
+    }
+
+    function renderPresetLabels() {
+      const labels = uiState.preset_labels || {};
+      document.querySelectorAll('.preset-slot-btn').forEach((btn) => {
+        const key = btn.getAttribute('data-preset-key') || '';
+        const noteEl = btn.querySelector('.preset-note');
+        if (!noteEl) return;
+        const note = String(labels[key] || '').trim();
+        noteEl.textContent = note;
+        noteEl.style.display = note ? 'block' : 'none';
+        btn.title = note ? `${key} - ${note}` : key;
+      });
+    }
+
+    function closePresetEditModal(result) {
+      if (presetEditModal) presetEditModal.classList.remove('show');
+      const resolver = presetEditResolver;
+      presetEditResolver = null;
+      if (resolver) resolver(result);
+    }
+
+    function openPresetEditModal(key, currentValue) {
+      if (!presetEditModal || !presetEditInput) {
+        return Promise.resolve(window.prompt(`给预置位 ${key} 添加说明，留空可清除`, currentValue));
+      }
+      if (presetEditTitle) presetEditTitle.textContent = `编辑预置位 ${key} 说明`;
+      presetEditInput.value = currentValue || '';
+      presetEditModal.classList.add('show');
+      requestAnimationFrame(() => {
+        presetEditInput.focus();
+        presetEditInput.select();
+      });
+      return new Promise((resolve) => {
+        presetEditResolver = resolve;
+      });
+    }
+
+    async function editPresetLabel(key) {
+      const labels = { ...(uiState.preset_labels || {}) };
+      const current = String(labels[key] || '');
+      const next = await openPresetEditModal(key, current);
+      if (next === null) {
+        return;
+      }
+      const value = String(next).trim();
+      if (value) labels[key] = value;
+      else delete labels[key];
+      applyUiState({ ...uiState, preset_labels: labels });
+      try {
+        await saveSharedUiStatePatch({ preset_labels: labels }, { silent: true });
+        statusEl.textContent = value ? `预置位 ${key} 说明已保存` : `预置位 ${key} 说明已清除`;
+      } catch (e) {
+        await fetchSharedUiState(true);
+        statusEl.textContent = `说明保存失败：${e.message}`;
+      }
+    }
+
+    function handlePresetSlotClick(ev, key) {
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      if (Date.now() < presetLabelSuppressClickUntil) {
+        return;
+      }
+      send(key);
+    }
+
+    function stopPresetLabelHold() {
+      if (presetLabelHoldTimer) {
+        clearTimeout(presetLabelHoldTimer);
+        presetLabelHoldTimer = null;
+      }
+      presetLabelHoldKey = '';
+      presetLabelPointerId = null;
+    }
+
+    function startPresetLabelHold(ev, key) {
+      if (!isPresetSlotKey(key)) return;
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+
+      stopPresetLabelHold();
+      presetLabelHoldKey = key;
+      presetLabelPointerId = ev.pointerId === undefined ? null : ev.pointerId;
+
+      const target = ev.currentTarget;
+      if (target && typeof target.setPointerCapture === 'function' && presetLabelPointerId !== null) {
+        try { target.setPointerCapture(presetLabelPointerId); } catch (_) {}
+      }
+
+      presetLabelHoldTimer = setTimeout(() => {
+        if (presetLabelHoldKey !== key) return;
+        presetLabelSuppressClickUntil = Date.now() + PRESET_LABEL_SUPPRESS_CLICK_MS;
+        stopPresetLabelHold();
+        editPresetLabel(key);
+      }, PRESET_LABEL_HOLD_MS);
+    }
+
+    function bindPresetLabelHoldButtons() {
+      document.querySelectorAll('.preset-slot-btn').forEach((btn) => {
+        const key = btn.getAttribute('data-preset-key') || '';
+        btn.addEventListener('pointerdown', (ev) => startPresetLabelHold(ev, key));
+        btn.addEventListener('pointerup', stopPresetLabelHold);
+        btn.addEventListener('pointercancel', stopPresetLabelHold);
+        btn.addEventListener('pointerleave', stopPresetLabelHold);
+        btn.addEventListener('contextmenu', (ev) => {
+          ev.preventDefault();
+        });
+        btn.addEventListener('click', (ev) => {
+          if (Date.now() < presetLabelSuppressClickUntil) {
+            ev.preventDefault();
+            ev.stopPropagation();
+          }
+        }, true);
+      });
+      window.addEventListener('pointerup', stopPresetLabelHold, { passive: true });
+      window.addEventListener('blur', stopPresetLabelHold);
+    }
+
     function clearPresetArmTimer() {
       if (presetArmTimer) {
         clearInterval(presetArmTimer);
@@ -1340,7 +1656,7 @@ function updateDigitalStatus(ms) {
     function setActivePresetButton(key) {
       const presetBtns = document.querySelectorAll('.preset-btn');
       presetBtns.forEach((btn) => {
-        const isTarget = btn.getAttribute('onclick') === `send('${key}')`;
+        const isTarget = btn.getAttribute('data-preset-key') === String(key);
         btn.classList.toggle('is-active', isTarget);
       });
     }
@@ -1449,36 +1765,26 @@ function updateDigitalStatus(ms) {
       return last || { ok: true, key };
     }
 
-    function activateBtn(key) {
+    async function activateBtn(key, persist = true) {
       if (!isPresetSlotKey(key)) return;
-      document.querySelectorAll('.btn-active').forEach(function(b) {
-        b.classList.remove('btn-active');
-      });
-      document.querySelectorAll('button').forEach(function(b) {
-        if (b.getAttribute('onclick') === "send('" + key + "')") {
-          b.classList.add('btn-active');
-        }
-      });
-      localStorage.setItem('cam-active-btn', key);
+      applyUiState({ ...uiState, active_preset: String(key) });
+      if (!persist) return;
+      try {
+        await saveSharedUiStatePatch({ active_preset: String(key) }, { silent: true });
+      } catch (e) {
+        appendDebug(`[ui-state] active preset save failed: ${e?.message || e}`);
+      }
     }
+
     function restoreActiveBtns() {
-      // Remove all active first
-      document.querySelectorAll('.btn-active').forEach(function(b) {
-        b.classList.remove('btn-active');
-      });
-      // Restore single active button
-      var key = localStorage.getItem('cam-active-btn');
-      if (!isPresetSlotKey(key)) {
-        localStorage.removeItem('cam-active-btn');
-        return;
-      }
-      if (key) {
-        document.querySelectorAll('button').forEach(function(b) {
-          if (b.getAttribute('onclick') === "send('" + key + "')") {
-            b.classList.add('btn-active');
-          }
-        });
-      }
+      applyPresetActiveVisual(uiState.active_preset);
+    }
+
+    function startUiStateSync() {
+      if (uiStateSyncTimer) clearInterval(uiStateSyncTimer);
+      uiStateSyncTimer = setInterval(() => {
+        fetchSharedUiState(true);
+      }, UI_STATE_POLL_MS);
     }
     async function send(key) {
       if (PRESET_BURST_KEYS.has(key)) setActivePresetButton(key);
@@ -1489,13 +1795,12 @@ function updateDigitalStatus(ms) {
           j = await sendReliable('preset');
           if (j?.ok) {
             armPresetCapture();
-            activateBtn(key);
             return;
           }
         } else if (presetArmActive && isPresetSlotKey(key)) {
           j = await sendReliable(key);
           if (j?.ok) {
-            activateBtn(key);
+            await activateBtn(key);
             disarmPresetCapture(`\u5df2\u5c06\u5f53\u524d\u753b\u9762\u4fdd\u5b58\u5230\u9884\u7f6e\u4f4d ${key}`);
             return;
           }
@@ -1504,7 +1809,7 @@ function updateDigitalStatus(ms) {
           j = await sendReliable(key);
           if (j?.ok) {
             statusEl.textContent = t('success') + key;
-            activateBtn(key);
+            await activateBtn(key);
             return;
           }
         }
@@ -1717,12 +2022,14 @@ function updateDigitalStatus(ms) {
     window.addEventListener('beforeunload', () => {
       stopWebRtcReader();
       if (webrtcEnsureTimer) clearInterval(webrtcEnsureTimer);
+      if (uiStateSyncTimer) clearInterval(uiStateSyncTimer);
     });
 
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
         tryPlay(video);
         if (isCurrentWebRtcMode() && !webrtcHasTrack) startAutoWebRtcBootstrap();
+        fetchSharedUiState(true);
       }
     });
 
@@ -1756,13 +2063,38 @@ function updateDigitalStatus(ms) {
     });
     setVideoStatus('');
     autoStartVideo();
-    restoreActiveBtns();
+    applyUiState(uiState);
+    bindPresetLabelHoldButtons();
+    fetchSharedUiState(true);
+    startUiStateSync();
     startAutoWebRtcBootstrap();
     startStreamHealthMonitor();
     startPlaybackGuard();
     startLatencyProbe();
     setInterval(syncLatencyDigitalFromBadge, 500);
     updateFullscreenUi();
+    if (presetEditCancel) {
+      presetEditCancel.addEventListener('click', () => closePresetEditModal(null));
+    }
+    if (presetEditConfirm) {
+      presetEditConfirm.addEventListener('click', () => closePresetEditModal(presetEditInput ? presetEditInput.value : ''));
+    }
+    if (presetEditModal) {
+      presetEditModal.addEventListener('click', (ev) => {
+        if (ev.target === presetEditModal) closePresetEditModal(null);
+      });
+    }
+    if (presetEditInput) {
+      presetEditInput.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          closePresetEditModal(presetEditInput.value);
+        } else if (ev.key === 'Escape') {
+          ev.preventDefault();
+          closePresetEditModal(null);
+        }
+      });
+    }
   </script>
 
 
